@@ -1,0 +1,429 @@
+
+paths:
+  /customer/guest:
+    post:
+      operationId: createGuestUser
+      description: Returns customer JWT token (the token is mandatory to access other customer functionality)
+      responses:
+        '201':
+          description: Successfully created guest user
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - token
+                properties:
+                  token:
+                    description: JWT access token
+                    type: string
+                  message:
+                    type: string
+          links:
+            verifyEmail:
+              operationId: verifyEmail
+              description: Proceed to verify email after guest creation
+            verifyPhoneNumber:
+              operationId: verifyNumber
+              description: Proceed to verify phoneNumber after guest creation
+            register:
+              operationId: saveCustomer
+              description: Proceed to register ther guest user
+            
+
+  /customer/verify-email:
+    post:
+      operationId: verifyEmail
+      security:
+        - bearerAuth: []
+      description: Verifies provided email. Sends a six-digit verification code if provided email is not associated with any user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email which needs to be checked
+                verificationUrl:
+                  type: string
+                  description: Url with session-id to verify the code provided by user
+      responses:
+        '200':
+          description: Successfully checked email
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - exists
+                  - message
+                properties:
+                  exists:
+                    type: boolean
+                    description: Describes if a user associated with provided email already exists
+                  message:
+                    type: string
+          links:
+            login:
+              operationId: login
+              description: If the email exists, proceed to login
+            register:
+              operationId: saveCustomer
+              description: If the email does not exist, proceed to user registration
+            verifyPhoneNumber:
+              operationId: verifyNumber
+              description: Proceed to verify phoneNumber after email verification
+
+  /customer/verify-email-code:
+    post:
+      operationId: verifyEmailCode
+      security:
+        - bearerAuth: []
+      description: Verifies the six-digit code sent to the user's email
+      parameters:
+        - name: id
+          in: query
+          description: Session-id returned from '/customer/verify-email/'
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  pattern: '^\d{6}$'
+                  description: A six-digit verification code
+      responses:
+        '200':
+          description: Code verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          links:
+            register:
+              operationId: saveCustomer
+              description: If the email does not exist, proceed to user registration
+            verifyPhoneNumber:
+              operationId: verifyNumber
+              description: Proceed to verify phoneNumber after email verification
+
+  /customer/verify-number:
+    post:
+      operationId: verifyNumber
+      security:
+        - bearerAuth: []
+      description: Verifies provided number by sending a six-digit verification code via SMS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - number
+              properties:
+                number:
+                  type: string
+                  description: Phone number in international format (E.164)
+                  example: "+14155552671"
+                  pattern: '^\+[1-9]\d{1,14}$'
+      responses:
+        '200':
+          description: Verification code has been sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+                  codeVerificationUrl:
+                    type: string
+                    description: URL to verify the code sent via SMS
+          links:
+            register:
+              operationId: saveCustomer
+              description: If the email does not exist, proceed to user registration
+            verifyEmail:
+              operationId: verifyEmail
+              description: Proceed to verify email after phone number verification
+           
+  /customer/verify-number-code:
+    post:
+      operationId: verifyNumberCode
+      security:
+        - bearerAuth: []
+      description: Verifies the six-digit code sent to the user's phone number
+      parameters:
+        - name: id
+          in: query
+          description: Session-id returned from '/customer/verify-number/'
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  pattern: '^\d{6}$'
+                  description: A six-digit verification code
+      responses:
+        '200':
+          description: Code verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          links:
+            register:
+              operationId: saveCustomer
+              description: If the number is verified, proceed to user registration
+            verifyEmail:
+              operationId: verifyEmail
+              description: If the number is verified, proceed to email verification
+
+  /customer/google-oauth:
+    post:
+      operationId: googleOAuth
+      summary: Google OAuth Login or Registration
+      description: Accepts an OAuth authorization code from Google and returns a JWT token.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  description: Google OAuth 2.0 authorization code
+      responses:
+        '200':
+          description: OAuth exchange succeeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token for authenticated session
+                  existed:
+                    type: boolean
+                    description: Indicates whether the user already existed
+          links:
+            getUser:
+              operationId: getUser
+              description: Retrieve the authenticated user info after OAuth login
+
+  /customer:
+    get:
+      operationId: getUser
+      description: Retrieves the current authenticated user's information.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/CustomerUser'
+          links:
+            updateUser:
+              operationId: saveOrUpdateUser
+              description: Update the user profile
+            deleteUser:
+              operationId: deleteUser
+              description: Delete the user account
+
+    post:
+      operationId: saveOrUpdateUser
+      summary: Save or update user profile
+      description: Register or updates the user's information.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - email
+                - phoneNumber
+                - firstName
+                - lastName
+                - password
+                - dateOfBirth
+              properties:
+                email:
+                  type: string
+                  format: email
+                firstName:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                lastName:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                password:
+                  type: string
+                  minLength: 6
+                  maxLength: 128
+                  pattern: '^[A-Za-z\d]{6,}$'
+                  description: Password with digit and uppercase letter
+                dateOfBirth:
+                  type: string
+                  format: date
+                  example: 1990-01-01
+                phoneNumber:
+                  type: string
+                  pattern: '^\+?[1-9]\d{1,14}$'
+                  example: "+14155552671"
+                image:
+                  type: string
+                  format: binary
+                  description: Profile picture file
+      responses:
+        '200':
+          description: User successfully saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: user was successfully saved
+          links:
+            getUser:
+              operationId: getUser
+              description: Get the updated user info
+            deleteUser:
+              operationId: deleteUser
+              description: Delete the user account
+
+    delete:
+      operationId: deleteUser
+      summary: Assigns 'Deleted' status to the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "user was successfully deleted"
+          links:
+            createGuest:
+              operationId: createGuestUser
+              description: Create a guest user after deletion
+
+  /customer/login:
+    post:
+      operationId: login
+      description: Authenticates a user with email and password, returns a JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          links:
+            getUser:
+              operationId: getUser
+              description: Retrieve user profile after login
+
+  /customer/login-jwt:
+    post:
+      operationId: loginWithJwt
+      description: Issues a JWT token for a user identified via an unexpired JWT token.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: JWT token issued successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+          links:
+            getUser:
+              operationId: getUser
+              description: Retrieve user profile after JWT login
+
+
+components:
+  $ref: '../../../openapi/components.yaml#/components'

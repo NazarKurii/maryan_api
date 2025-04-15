@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  version: 1.0.0
+  title: Marshrutka
+  description: API designed to manage internal procceses of project 'Marshrutka'
+
+servers:
+  - url: http://localhost:8080
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /customer/guest:
+    $ref: '../internal/domains/user/user.yaml#/paths/~1customer~1guest'
+  /customer/verify-email:
+    $ref: '../internal/domains/user/user.yaml#/paths/~1customer~1verify-email'
+  /customer/verify-email-code:
+    $ref: '../internal/domains/user/user.yaml#/paths/~1customer~1verify-email-code'
+  /cutomer/verify-number:
+    $ref: '../internal/domains/user/user.yaml#/paths/~1customer~1verify-number'
+  /customer/verify-number-code:
+    $ref: '../internal/domains/user/user.yaml#/paths/~1customer~1verify-number-code'
+  /customer/google-oauth:
+    $ref: '../internal/domains/user/user.yaml#/paths/~1customer~1google-oauth'
+  /customer:
+    $ref: '../internal/domains/user/user.yaml#/paths/~1customer'
+  /customer/login:
+   $ref: '../internal/domains/user/user.yaml#/paths/~1customer~1login'
+  /customer/login-jwt:
+    $ref: '../internal/domains/user/user.yaml#/paths/~1customer~1login-jwt'
+
+
+components:
+  $ref: './components.yaml#/components'

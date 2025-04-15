@@ -1,0 +1,107 @@
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      
+  schemas:
+    #---------------Problems-----------------
+    Problem:
+      type: object
+      required:
+        - type
+        - title
+        - detail
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+    
+    ProblemWithInvalidParams:
+      type: object
+      required:
+        - type
+        - title
+        - detail
+        - invalidParams
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        invalidParams:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - reason
+            properties:
+              name:
+                type: string
+              reason:
+                type: string
+    #-----------------------------------------------
+
+    CustomerUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        imageUrl:
+          type: string
+          format: uri
+
+  responses:
+    #----------------Errors-------------------------
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    UnauthorizedError:
+      description: Access to the resourse is denied due to problems with authorization procceses
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemWithInvalidParams'
+
+    BadRequestError:
+      description: Bad request error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemWithInvalidParams'
+
+    BadGateaway:
+      description: Bad gateaway error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemWithInvalidParams'
+    
+          
