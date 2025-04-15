@@ -1,0 +1,282 @@
+[
+  {
+    "model": "Mercedes Tourismo Premium",
+    "registrationNumber": "BUS2001",
+    "year": 2023,
+    "gpsTrackerID": "GPS-2001",
+    "leadDriverID": "f249f007-7774-11f0-8b6f-cef5641437d8",
+    "assistantDriverID": "f249f468-7774-11f0-8b6f-cef5641437d8",
+    "structure": [
+      [
+        {"number": 1, "type": "Single-Window", "direction": "Backward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 2, "type": "Single-Window", "direction": "Backward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 3, "type": "Single-Window", "direction": "Forward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 4, "type": "Single-Window", "direction": "Forward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 5, "type": "Window", "direction": "Forward"},
+        {"number": 6, "type": "Midlle", "direction": "Forward"},
+        {"number": 7, "type": "Window", "direction": "Forward"}
+      ]
+    ]
+  },
+  {
+    "model": "Mercedes Tourismo Premium",
+    "registrationNumber": "BUS2002",
+    "year": 2023,
+    "gpsTrackerID": "GPS-2002",
+    "leadDriverID": "f249f566-7774-11f0-8b6f-cef5641437d8",
+    "assistantDriverID": "f249f5e6-7774-11f0-8b6f-cef5641437d8",
+    "structure": [
+      [
+        {"number": 1, "type": "Single-Window", "direction": "Backward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 2, "type": "Single-Window", "direction": "Backward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 3, "type": "Single-Window", "direction": "Forward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 4, "type": "Single-Window", "direction": "Forward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 5, "type": "Window", "direction": "Forward"},
+        {"number": 6, "type": "Midlle", "direction": "Forward"},
+        {"number": 7, "type": "Window", "direction": "Forward"}
+      ]
+    ]
+  },
+  {
+    "model": "Mercedes Tourismo Premium",
+    "registrationNumber": "BUS2003",
+    "year": 2023,
+    "gpsTrackerID": "GPS-2003",
+    "leadDriverID": "f249f72a-7774-11f0-8b6f-cef5641437d8",
+    "assistantDriverID": "f249f78e-7774-11f0-8b6f-cef5641437d8",
+    "structure": [
+      [
+        {"number": 1, "type": "Single-Window", "direction": "Backward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 2, "type": "Single-Window", "direction": "Backward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 3, "type": "Single-Window", "direction": "Forward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 4, "type": "Single-Window", "direction": "Forward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 5, "type": "Window", "direction": "Forward"},
+        {"number": 6, "type": "Midlle", "direction": "Forward"},
+        {"number": 7, "type": "Window", "direction": "Forward"}
+      ]
+    ]
+  },
+  {
+    "model": "Mercedes Tourismo Premium",
+    "registrationNumber": "BUS2004",
+    "year": 2023,
+    "gpsTrackerID": "GPS-2004",
+    "leadDriverID": "f249f7ed-7774-11f0-8b6f-cef5641437d8",
+    "assistantDriverID": "f249f84b-7774-11f0-8b6f-cef5641437d8",
+    "structure": [
+      [
+        {"number": 1, "type": "Single-Window", "direction": "Backward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 2, "type": "Single-Window", "direction": "Backward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 3, "type": "Single-Window", "direction": "Forward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 4, "type": "Single-Window", "direction": "Forward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 5, "type": "Window", "direction": "Forward"},
+        {"number": 6, "type": "Midlle", "direction": "Forward"},
+        {"number": 7, "type": "Window", "direction": "Forward"}
+      ]
+    ]
+  },
+  {
+    "model": "Mercedes Tourismo Premium",
+    "registrationNumber": "BUS2005",
+    "year": 2023,
+    "gpsTrackerID": "GPS-2005",
+    "leadDriverID": "f249f8b3-7774-11f0-8b6f-cef5641437d8",
+    "assistantDriverID": "f249f96f-7774-11f0-8b6f-cef5641437d8",
+    "structure": [
+      [
+        {"number": 1, "type": "Single-Window", "direction": "Backward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 2, "type": "Single-Window", "direction": "Backward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 3, "type": "Single-Window", "direction": "Forward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 4, "type": "Single-Window", "direction": "Forward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 5, "type": "Window", "direction": "Forward"},
+        {"number": 6, "type": "Midlle", "direction": "Forward"},
+        {"number": 7, "type": "Window", "direction": "Forward"}
+      ]
+    ]
+  },
+  {
+    "model": "Mercedes Tourismo Premium",
+    "registrationNumber": "BUS2006",
+    "year": 2023,
+    "gpsTrackerID": "GPS-2006",
+    "leadDriverID": "f249fadd-7774-11f0-8b6f-cef5641437d8",
+    "assistantDriverID": "f249fb45-7774-11f0-8b6f-cef5641437d8",
+    "structure": [
+      [
+        {"number": 1, "type": "Single-Window", "direction": "Backward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 2, "type": "Single-Window", "direction": "Backward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 3, "type": "Single-Window", "direction": "Forward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 4, "type": "Single-Window", "direction": "Forward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 5, "type": "Window", "direction": "Forward"},
+        {"number": 6, "type": "Midlle", "direction": "Forward"},
+        {"number": 7, "type": "Window", "direction": "Forward"}
+      ]
+    ]
+  },
+  {
+    "model": "Mercedes Tourismo Premium",
+    "registrationNumber": "BUS2007",
+    "year": 2023,
+    "gpsTrackerID": "GPS-2007",
+    "leadDriverID": "f249fbb0-7774-11f0-8b6f-cef5641437d8",
+    "assistantDriverID": "f249fc14-7774-11f0-8b6f-cef5641437d8",
+    "structure": [
+      [
+        {"number": 1, "type": "Single-Window", "direction": "Backward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 2, "type": "Single-Window", "direction": "Backward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 3, "type": "Single-Window", "direction": "Forward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 4, "type": "Single-Window", "direction": "Forward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 5, "type": "Window", "direction": "Forward"},
+        {"number": 6, "type": "Midlle", "direction": "Forward"},
+        {"number": 7, "type": "Window", "direction": "Forward"}
+      ]
+    ]
+  },
+  {
+    "model": "Mercedes Tourismo Premium",
+    "registrationNumber": "BUS2008",
+    "year": 2023,
+    "gpsTrackerID": "GPS-2008",
+    "leadDriverID": "f249fc73-7774-11f0-8b6f-cef5641437d8",
+    "assistantDriverID": "f249fcd5-7774-11f0-8b6f-cef5641437d8",
+    "structure": [
+      [
+        {"number": 1, "type": "Single-Window", "direction": "Backward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 2, "type": "Single-Window", "direction": "Backward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 3, "type": "Single-Window", "direction": "Forward"},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 4, "type": "Single-Window", "direction": "Forward"}
+      ],
+      [
+        {"number": 0, "type": "Table", "direction": ""},
+        {"number": 0, "type": "Space", "direction": ""},
+        {"number": 0, "type": "Table", "direction": ""}
+      ],
+      [
+        {"number": 5, "type": "Window", "direction": "Forward"},
+        {"number": 6, "type": "Midlle", "direction": "Forward"},
+        {"number": 7, "type": "Window", "direction": "Forward"}
+      ]
+    ]
+  }
+]
