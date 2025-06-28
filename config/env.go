@@ -21,7 +21,19 @@ func LoadConfig(path string) {
 }
 
 func APIURL() string {
-	return "http://localhost:8080"
+	url := os.Getenv("API_URL")
+	if url == "" {
+		panic("Could not load customer secret key")
+	}
+	return url
+}
+
+func GuestCustomerSecretKey() []byte {
+	key := os.Getenv("GUEST_CUSTOMER_SECRET_KEY")
+	if key == "" {
+		panic("Could not load customer secret key")
+	}
+	return []byte(key)
 }
 
 func CustomerSecretKey() []byte {
@@ -49,6 +61,22 @@ func DriverSecretKey() []byte {
 }
 func SupportEmployeeSecretKey() []byte {
 	key := os.Getenv("SUPPORT_EMPLOYEE_SECRET_KEY")
+	if key == "" {
+		panic("Could not load customer secret key")
+	}
+	return []byte(key)
+}
+
+func EmailAccessTokenSecretKey() []byte {
+	key := os.Getenv("EMAIL_ACCESS_TOKEN_SECRET_KEY")
+	if key == "" {
+		panic("Could not load customer secret key")
+	}
+	return []byte(key)
+}
+
+func NumberAccessTokenSecretKey() []byte {
+	key := os.Getenv("NUMBER_ACCESS_TOKEN_SECRET_KEY")
 	if key == "" {
 		panic("Could not load customer secret key")
 	}

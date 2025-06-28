@@ -9,13 +9,12 @@ import (
 )
 
 func ServiceErrorAbort(c *gin.Context, err error) {
-	logger := RequestLog(c)
+	logger := getLogger(c)
 	problem, ok := rfc7807.Is(err)
 	if !ok {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, rfc7807.Internal("Could not convert error into rfc7807 representaion", fmt.Sprintf("Error message: %s", err.Error()), logger.GetID()))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, rfc7807.Internal("Could not convert error into rfc7807 representaion", fmt.Sprintf("Error message: %s", err.Error())))
 		logger.SetError(err, http.StatusInternalServerError)
 	} else {
-		problem.SetInstance(logger.GetID())
 		c.AbortWithStatusJSON(problem.Status, problem)
 		logger.SetProblem(problem)
 	}
@@ -23,8 +22,7 @@ func ServiceErrorAbort(c *gin.Context, err error) {
 }
 
 func HandlerProblemAbort(c *gin.Context, problem rfc7807.Problem) {
-	logger := RequestLog(c)
-	problem.SetInstance(logger.GetID())
+	logger := getLogger(c)
 	c.AbortWithStatusJSON(problem.Status, problem)
 	logger.SetProblem(problem)
 }

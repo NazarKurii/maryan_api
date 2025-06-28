@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 
+	"maryan_api/config"
 	"maryan_api/pkg/auth"
+	"maryan_api/pkg/hypermedia"
 	rfc7807 "maryan_api/pkg/problem"
 	"maryan_api/pkg/security"
 	"strings"
@@ -28,9 +30,9 @@ type User struct {
 	DateOfBirth dateOfBirth  `gorm:"not null" json:"dateOfBirth"  binding:"required"`
 	PhoneNumber string       `gorm:"type:varchar(15);not null" json:"phoneNumber"  binding:"required"`
 	Email       string       `gorm:"type:varchar(255);not null;unique" json:"email"  binding:"required"`
-	Guest       bool         `gorm:"not null" json:"guest"`
 	Password    string       `gorm:"type:varchar(255);not null" json:"password"  binding:"required"`
 	ImageUrl    string       `gorm:"type:varchar(255);not null" json:"imageUrl"`
+	Sex         userSex      `gorm:"type:enum('Female','Male');not null" json:"sex"`
 	Role        userRole     `gorm:"type:enum('Customer','Admin','Driver','Support Employee');not null" json:"role"`
 	CreatedAt   time.Time    `gorm:"not null" json:"createdAt"`
 	UpdatedAt   time.Time    `gorm:"not null" json:"updatedAt"`
@@ -43,8 +45,7 @@ type dateOfBirth struct {
 }
 
 func (dob *dateOfBirth) UnmarshalJSON(b []byte) error {
-	// b is a JSON string literal, e.g. `"1990-05-15"`
-	s := strings.Trim(string(b), `"`) // remove quotes
+	s := strings.Trim(string(b), `"`)
 
 	// parse using the correct layout "2006-01-02"
 	t, err := time.Parse("2006-01-02", s)
@@ -91,30 +92,30 @@ func (dob dateOfBirth) Value() (driver.Value, error) {
 
 // USER -> ROLE
 type userRole struct {
-	Role auth.Role
+	Val auth.Role
 }
 
 func (ur userRole) MarshalJSON() ([]byte, error) {
-	return json.Marshal((ur.Role.Role()))
+	return json.Marshal((ur.Val.Name()))
 }
 
 func (ur userRole) Value() (driver.Value, error) {
-	if ur.Role == nil {
+	if ur.Val == nil {
 		return nil, errors.New("Role is a nil interface")
 	}
-	return ur.Role.Role(), nil
+	return ur.Val.Name(), nil
 
 }
 func (ur *userRole) Scan(value interface{}) error {
 	switch v := value.(type) {
 	case string:
 		var err error
-		ur.Role, err = auth.DefineRole(v)
+		ur.Val, err = auth.DefineRole(v)
 		return err
 	case []byte:
 		str := string(v)
 		var err error
-		ur.Role, err = auth.DefineRole(str)
+		ur.Val, err = auth.DefineRole(str)
 		return err
 	default:
 		return fmt.Errorf("UserRole: cannot scan type %T into string", value)
@@ -126,6 +127,25 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 		u.Password, err = security.HashPassword(u.Password)
 	}
 	return
+
+}
+
+type userSex string
+
+const (
+	maleSex   userSex = "Male"
+	femaleSex userSex = "Female"
+)
+
+func sexImage(sex string) (string, error) {
+	switch sex {
+	case string(maleSex):
+		return config.APIURL() + "/imgs/guest-male.png", nil
+	case string(femaleSex):
+		return config.APIURL() + "/imgs/guest-female.png", nil
+	default:
+		return "", rfc7807.BadRequest("incorect-sex", "Sex Error", "Provided sex is not valid", rfc7807.InvalidParam{"sex", fmt.Sprintf("Can only be 'male' or 'female', got '%s'.", sex)})
+	}
 
 }
 
@@ -145,36 +165,169 @@ func (u *User) fomratPhoneNumber() error {
 	return nil
 }
 
-func (u *User) validate() ([]rfc7807.InvalidParam, bool) {
-	params, add, isNil := rfc7807.StartSettingInvalidParams()
+func (u *User) validate() rfc7807.InvalidParams {
+	var params rfc7807.InvalidParams
 
 	if len(u.FirstName) < 1 {
-		add("firstName", "Cannot be blank.")
+		params.SetInvalidParam("firstName", "Cannot be blank.")
 	}
 
 	if len(u.LastName) < 1 {
-		add("lastName", "Cannot be blank.")
+		params.SetInvalidParam("lastName", "Cannot be blank.")
+	}
+
+	if u.Sex != maleSex && u.Sex != femaleSex {
+		params.SetInvalidParam("sex", "Can only be 'Male' or 'Female'")
 	}
 
 	if u.DateOfBirth.Before(time.Now().AddDate(-125, 0, 0)) {
-		add("dateOfBirth", "Has to be greater or equal to 18.")
+		params.SetInvalidParam("dateOfBirth", "Has to be greater or equal to 18.")
 	}
 
 	if !govalidator.IsEmail(u.Email) {
-		add("email", "Contains invalid characters or is not an email.")
+		params.SetInvalidParam("email", "Contains invalid characters or is not an email.")
 	}
 
 	if len(u.Password) < 6 {
-		add("password", "Has to be at least 6 characters long.")
+		params.SetInvalidParam("password", "Has to be at least 6 characters long.")
 	}
 
 	if !govalidator.HasUpperCase(u.Password) {
-		add("password", "Has to contain at least one uppercase letter.")
+		params.SetInvalidParam("password", "Has to contain at least one uppercase letter.")
 	}
 
 	if !strings.ContainsAny(u.Password, "0123456789") {
-		add("password", "Has to contain at least one number.")
+		params.SetInvalidParam("password", "Has to contain at least one number.")
 	}
 
-	return *params, isNil()
+	return params
+}
+
+const (
+	emailSession = iota
+	numberSession
+)
+
+type EmailVerificationSession struct {
+	ID      uuid.UUID `json:"id"`
+	Code    string    `gorm:"type:char(6);not null" json:"code"`
+	Email   string    `gorm:"type:varchar(255);not null" json:"email"`
+	Expires time.Time `gorm:"not null" json:"expires"`
+}
+
+type EmailVerifiedSession struct {
+	ID      uuid.UUID ` json:"id"`
+	Email   string    `gorm:"type:varchar(255);not null" json:"email"`
+	Expires time.Time `gorm:"not null" json:"expires"`
+}
+
+type NumberVerificationSession struct {
+	ID      uuid.UUID `json:"id"`
+	Code    string    `gorm:"type:char(6);not null" json:"code"`
+	Number  string    `gorm:"type:varchar(15);not null" json:"number"`
+	Expires time.Time `gorm:"not null" json:"expires"`
+}
+
+type NumberVerifiedSession struct {
+	ID      uuid.UUID ` json:"id"`
+	Number  string    `gorm:"type:varchar(15);not null" json:"number"`
+	Expires time.Time `gorm:"not null" json:"expires"`
+}
+
+//----------------- Migrations ----------------------
+
+func Migrate(db *gorm.DB) {
+	db.AutoMigrate(
+		&User{},
+		&EmailVerificationSession{},
+		&EmailVerifiedSession{},
+		&NumberVerificationSession{},
+		&NumberVerifiedSession{},
+	)
+
+}
+
+// -----------------HyperMedia------------------------
+
+var (
+	guestLink = hypermedia.Link{
+		"create": {Href: "/customer/guest", Method: "POST"},
+	}
+
+	verifyEmailLink = hypermedia.Link{
+		"verifyEmail": {Href: "/customer/verify-email", Method: "POST"},
+	}
+
+	verifyNumberLink = hypermedia.Link{
+		"verifyPhoneNumber": {Href: "/customer/verify-number", Method: "POST"},
+	}
+
+	verifyNumberCodeLink = hypermedia.Link{
+		"codeVerification": {Href: "/customer/code-verification", Method: "POST"},
+	}
+
+	googleOAuthLink = hypermedia.Link{
+		"loginOAuth": {Href: "/customer/google-oauth", Method: "POST"},
+	}
+
+	getUserLink = hypermedia.Link{
+		"self": {Href: "/customer/user", Method: "GET"},
+	}
+
+	registerUserLink = hypermedia.Link{
+		"register": {Href: "/customer/user", Method: "POST"},
+	}
+
+	deleteUserLink = hypermedia.Link{
+		"delete": {Href: "/customer/user", Method: "DELETE"},
+	}
+
+	loginLink = hypermedia.Link{
+		"login": {Href: "/customer/login", Method: "POST"},
+	}
+
+	loginJWTLink = hypermedia.Link{
+		"loginJWT": {Href: "/customer/login-jwt", Method: "POST"},
+	}
+)
+
+// ----------------strcuct-manipulations------------------
+type ShortUser struct {
+	ID          uuid.UUID `json:"id"`
+	FirstName   string    `json:"firstName"`
+	LastName    string    `json:"lastName"`
+	DateOfBirth string    `json:"dateOfBirth"`
+	PhoneNumber string    `json:"phoneNumber"`
+	Email       string    `json:"email"`
+	ImageUrl    string    `json:"imageUrl"`
+	Sex         userSex   `json:"sex"`
+}
+
+func (user User) toShortUser() ShortUser {
+	return ShortUser{
+		ID:          user.ID,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		DateOfBirth: user.DateOfBirth.String(),
+		PhoneNumber: user.PhoneNumber,
+		Email:       user.Email,
+		ImageUrl:    user.ImageUrl,
+	}
+}
+
+func (su ShortUser) toUserDB() (User, error) {
+	dob, err := time.Parse(time.RFC3339, su.DateOfBirth)
+	if err != nil {
+		return User{}, err
+	}
+
+	return User{
+		ID:          su.ID,
+		FirstName:   su.FirstName,
+		LastName:    su.LastName,
+		DateOfBirth: dateOfBirth{dob},
+		PhoneNumber: su.PhoneNumber,
+		Email:       su.Email,
+		ImageUrl:    su.ImageUrl,
+	}, nil
 }

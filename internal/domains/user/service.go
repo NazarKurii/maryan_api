@@ -2,7 +2,10 @@ package user
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
+	"maryan_api/config"
 	google "maryan_api/internal/infrastructure/clients/googleoauth"
 	"maryan_api/internal/infrastructure/clients/verification"
 	"maryan_api/pkg/auth"
@@ -12,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/asaskevich/govalidator"
@@ -19,12 +23,13 @@ import (
 	"github.com/nyaruka/phonenumbers"
 )
 
-// userServiceImpl defines a basic user struct for embadding.
-
 type userService interface {
+	//----------Not authentificated------------------
 	login(email, password string) (string, error)
 	loginJWT(id uuid.UUID, email string) (string, error)
-	usersData(id uuid.UUID) (User, error)
+	//------------Authentificated--------------------
+
+	//Aditional functionality
 	userService() userService
 	secretKey() []byte
 }
@@ -32,26 +37,17 @@ type userService interface {
 type customerService interface {
 	userService
 
-	save(u *User) error
-	delete(id uuid.UUID) error
+	//----------Not authentificated------------------
+	register(u *User, image *multipart.FileHeader, emailAccessToken, numberAccessToken string) (string, error)
 	verifyEmail(email string) (string, bool, error)
+	verifyEmailCode(code, token string) (string, error)
 	verifyNumber(number string) (string, error)
-	guest() (string, error)
+	verifyNumberCode(number, token string) (string, error)
 	googleOAUTH(code string, ctx context.Context, id uuid.UUID) (string, bool, error)
-}
 
-type adminService interface {
-	userService
-
-	getUsers(pageNumber, pageSize int) ([]User, int64, error)
-}
-
-type driverService interface {
-	userService
-}
-
-type supportEmployeeService interface {
-	userService
+	//------------Authentificated--------------------
+	get(id uuid.UUID) (ShortUser, error)
+	delete(id uuid.UUID) error
 }
 
 type userServiceImpl struct {
@@ -71,8 +67,8 @@ func (us *userServiceImpl) login(email, password string) (string, error) {
 	if !govalidator.IsEmail(email) {
 		return "", rfc7807.BadRequest(
 			"email-invalid",
-			"Invalid Email",
-			"Provided email contains forbidden characters or is not an email at all",
+			"Invalid Email Error",
+			"Provided email contains forbidden characters or is not an email at all.",
 		)
 	}
 
@@ -84,34 +80,42 @@ func (us *userServiceImpl) login(email, password string) (string, error) {
 	if ok := security.VerifyPassword(password, passwordHashed); !ok {
 		return "", rfc7807.Unauthorized(
 			"invalid-password",
-			"Invalid Password",
-			"Invalid password for user assosiated with provided email",
+			"Invalid Password Error",
+			"Invalid password for user assosiated with the provided email.",
 		)
 	}
 
-	token, err := us.role.GenerateToken(email, id)
-	return token, err
+	return us.role.GenerateToken(email, id)
+
 }
 
 func (us *userServiceImpl) loginJWT(id uuid.UUID, email string) (string, error) {
 	if !govalidator.IsEmail(email) {
 		return "", rfc7807.BadRequest(
 			"email-invalid",
-			"Invalid Email",
-			"Provided email contains forbidden characters or is not an email at all",
+			"Invalid Email Error",
+			"Provided email contains forbidden characters or is not an email at all.",
 		)
 	}
 
-	exists, err := us.repo.loginJWT(email, id)
+	validID, exists, err := us.repo.userExists(email)
 	if err != nil {
 		return "", err
 	}
 
 	if !exists {
 		return "", rfc7807.BadRequest(
-			"unexistant-user",
-			"Unexistant user",
-			"There is no user assosiated with provided email",
+			"non-existing-user",
+			"Non-existing User Error",
+			"There is no user assosiated with the provided email.",
+		)
+	}
+
+	if id != validID {
+		return "", rfc7807.Unauthorized(
+			"unauthorized",
+			"Unauthorized",
+			"Invalid token.",
 		)
 	}
 
@@ -120,12 +124,13 @@ func (us *userServiceImpl) loginJWT(id uuid.UUID, email string) (string, error) 
 	return token, err
 }
 
-func (us *userServiceImpl) usersData(id uuid.UUID) (User, error) {
-	u, err := us.repo.getByID(id)
+func (us *userServiceImpl) get(id uuid.UUID) (ShortUser, error) {
+	user, err := us.repo.getByID(id)
 	if err != nil {
-		return User{}, err
+		return ShortUser{}, err
 	}
-	return u, nil
+
+	return user.toShortUser(), nil
 }
 
 type customerServiceImpl struct {
@@ -134,25 +139,109 @@ type customerServiceImpl struct {
 	client *http.Client
 }
 
-func (cs *customerServiceImpl) save(u *User) error {
-	params, ok := u.validate()
+func (cs *customerServiceImpl) register(u *User, image *multipart.FileHeader, emailAccessToken, numberAccessToken string) (string, error) {
+	params := u.validate()
 	if err := u.fomratPhoneNumber(); err != nil {
-		params = append(params, rfc7807.InvalidParam{"phoneNumber", err.Error()})
-		ok = false
+		params.SetInvalidParam("phoneNumber", err.Error())
 	}
-	if !ok {
-		return rfc7807.BadRequest(
+
+	emailSessionID, err := cs.AccessEmail(u.Email, emailAccessToken)
+	if err != nil {
+		params.SetInvalidParam("emailAccessToken", err.Error())
+	}
+
+	numberSessionID, err := cs.AccessNumber(u.PhoneNumber, numberAccessToken)
+	if err != nil {
+		params.SetInvalidParam("emailAccessToken", err.Error())
+	}
+
+	if params != nil {
+		return "", rfc7807.BadRequest(
 			"user-credentials-validation",
 			"user Credentials Error",
 			"Could not save the users due to invalid credentials.",
-		).SetInvalidParams(params)
+			params...,
+		)
 	}
 
-	u.Guest = false
-	u.Role = userRole{cs.role}
+	u.ID = uuid.New()
 
-	err := cs.repo.save(u)
-	return err
+	if image != nil {
+		url := config.APIURL() + "/static/imgs/" + u.ID.String()
+		err := saveUserImage(url, image)
+		if err != nil {
+			return "", rfc7807.Internal("image-saving-error", err.Error())
+		}
+		u.ImageUrl = url
+	} else {
+		u.ImageUrl = config.APIURL() + "/imgs/guest-female.png"
+	}
+
+	u.Role.Val = auth.Customer
+	err = cs.repo.create(u)
+	if err != nil {
+		return "", err
+	}
+
+	err = cs.repo.useVerifiedEmail(emailSessionID)
+	if err != nil {
+		return "", err
+	}
+	err = cs.repo.useVerifiedNumber(numberSessionID)
+	if err != nil {
+		return "", err
+	}
+
+	token, err := u.Role.Val.GenerateToken(u.Email, u.ID)
+	return token, err
+}
+
+func (cs *customerServiceImpl) AccessEmail(email, token string) (uuid.UUID, error) {
+
+	sessionID, err := auth.VerifyAccessToken(token, config.EmailAccessTokenSecretKey())
+
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	session, err := cs.repo.verifiedEmail(sessionID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	if session.Expires.Before(time.Now()) {
+		return uuid.Nil, errors.New("Provided Token has Expired.")
+	}
+
+	if session.Email != email {
+		return uuid.Nil, errors.New("Email assosiated with access token differs from the provided one.")
+	}
+
+	return sessionID, nil
+}
+
+func (cs *customerServiceImpl) AccessNumber(number, token string) (uuid.UUID, error) {
+
+	sessionID, err := auth.VerifyAccessToken(token, config.NumberAccessTokenSecretKey())
+
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	session, err := cs.repo.verifiedNumber(sessionID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	if session.Expires.Before(time.Now()) {
+		return uuid.Nil, errors.New("Provided Token has Expired.")
+	}
+
+	if session.Number != number {
+		return uuid.Nil, errors.New("Number assosiated with access token differs from the provided one.")
+	}
+
+	return sessionID, nil
 }
 
 func saveUserImage(path string, image *multipart.FileHeader) error {
@@ -177,41 +266,86 @@ func saveUserImage(path string, image *multipart.FileHeader) error {
 }
 
 func (us *customerServiceImpl) delete(id uuid.UUID) error {
-	existed, err := us.repo.delete(id)
-
-	if !existed {
-		return rfc7807.BadRequest("unexistant-user", "Unexistant user Error", err.Error())
-	}
-	if err != nil {
-		return err
-	}
-	return nil
+	return us.repo.delete(id)
 }
 
 func (cs *customerServiceImpl) verifyEmail(email string) (string, bool, error) {
 	if !govalidator.IsEmail(email) {
 		return "", false, rfc7807.BadRequest(
-			"email-invalid",
-			"Invalid Email",
-			"Provided email contains forbidden characters or is not an email at all",
+			"invalid-email",
+			"Invalid Email Error",
+			"Provided email contains forbidden characters or is not an email at all.",
 		)
 	}
 
 	exists, err := cs.repo.emailExists(email)
-	if err != nil {
-		return "", false, err
-	}
-
-	if exists {
-		return "", true, nil
+	if err != nil || exists {
+		return "", true, err
 	}
 
 	verificationCode, err := verification.VerifyEmail(email)
 	if err != nil {
-		rfc7807.BadGateway("email-verification", "Email Verification Error", err.Error())
+		rfc7807.BadGateway("email-verification-service", "Email Verification Error", err.Error())
 	}
 
-	return verificationCode, false, nil
+	sessionID, err := cs.repo.startEmailVerification(verificationCode, email)
+	if err != nil {
+		return "", false, err
+	}
+
+	token, err := auth.GenerateAccessToken(sessionID, config.EmailAccessTokenSecretKey(), time.Minute*10)
+
+	return token, false, err
+}
+
+func validateVerificationCode(code string) error {
+	var errMessage string
+
+	if length := len(code); length != 6 {
+		errMessage = fmt.Sprintf("Invalid code length. Want 6, got '%d'. ", length)
+	}
+
+	if !regexp.MustCompile(`^\d+$`).MatchString(code) {
+		errMessage += fmt.Sprintf("The code has to only contain digits, got '%s'.", code)
+	}
+
+	if errMessage != "" {
+		return rfc7807.New(http.StatusUnprocessableEntity, "invalid-verificaiton-code-format", "Code Forman Error", errMessage)
+	}
+
+	return nil
+}
+
+func (cs *customerServiceImpl) verifyEmailCode(code, token string) (string, error) {
+	err := validateVerificationCode(code)
+	if err != nil {
+		return "", err
+	}
+
+	sessionID, err := auth.VerifyAccessToken(token, config.EmailAccessTokenSecretKey())
+	if err != nil {
+		return "", rfc7807.Unauthorized("email-code-verification-token", "Unauthorized", "Unauthorized")
+	}
+
+	session, err := cs.repo.emailVerificationSession(sessionID)
+	if err != nil {
+		return "", err
+	}
+
+	if session.Expires.Before(time.Now()) {
+		return "", rfc7807.New(http.StatusGone, "expired-session", "Expired Session Error", "The sesion has expired and no longer can be used to verify th email")
+	}
+
+	if code != session.Code {
+		return "", rfc7807.BadRequest("incorect-email-verification-code", "Incorect Email Verification Code Error", "Provided code does not match the sent one")
+	}
+
+	sessionID, err = cs.repo.completeEmailVerification(sessionID, session.Email)
+	if err != nil {
+		return "", err
+	}
+
+	return auth.GenerateAccessToken(sessionID, config.EmailAccessTokenSecretKey(), time.Minute*10)
 }
 
 func (cs *customerServiceImpl) verifyNumber(number string) (string, error) {
@@ -229,28 +363,44 @@ func (cs *customerServiceImpl) verifyNumber(number string) (string, error) {
 		rfc7807.BadGateway("phone-number-verification", "Phone Number Verification Error", err.Error())
 	}
 
-	return verificationCode, nil
-}
-
-func (cs *customerServiceImpl) guest() (string, error) {
-	var id = uuid.New()
-	var guest = User{
-		ID:          id,
-		DateOfBirth: dateOfBirth{time.Now().AddDate(-25, 0, 0)},
-		Email:       id.String(),
-		Guest:       true,
-		ImageUrl:    "https://example.com/default-guest-avatar.png",
-		Role:        userRole{auth.Customer},
-	}
-
-	err := cs.repo.save(&guest)
+	sessionID, err := cs.repo.startNumberVerification(verificationCode, phonenumbers.Format(num, phonenumbers.E164))
 	if err != nil {
 		return "", err
 	}
 
-	token, err := cs.role.GenerateToken(guest.Email, guest.ID)
+	return auth.GenerateAccessToken(sessionID, config.NumberAccessTokenSecretKey(), time.Minute*10)
+}
 
-	return token, err
+func (cs *customerServiceImpl) verifyNumberCode(code, token string) (string, error) {
+	err := validateVerificationCode(code)
+	if err != nil {
+		return "", err
+	}
+
+	sessionID, err := auth.VerifyAccessToken(token, config.NumberAccessTokenSecretKey())
+	if err != nil {
+		return "", rfc7807.Unauthorized("email-code-verification-token", "Unauthorized", "Unauthorized")
+	}
+
+	session, err := cs.repo.numberVerificationSession(sessionID)
+	if err != nil {
+		return "", err
+	}
+
+	if session.Expires.Before(time.Now()) {
+		return "", rfc7807.New(http.StatusGone, "expired-session", "Expired Session Error", "The sesion has expired and no longer can be used to verify th email")
+	}
+
+	if code != session.Code {
+		return "", rfc7807.BadRequest("incorect-number-verification-code", "Incorect Number Verification Code Error", "Provided code does not match the sent one")
+	}
+
+	sessionID, err = cs.repo.completeNumberVerification(sessionID, session.Number)
+	if err != nil {
+		return "", err
+	}
+
+	return auth.GenerateAccessToken(sessionID, config.NumberAccessTokenSecretKey(), time.Minute*10)
 }
 
 func (cs *customerServiceImpl) googleOAUTH(code string, ctx context.Context, id uuid.UUID) (string, bool, error) {
@@ -280,7 +430,7 @@ func (cs *customerServiceImpl) googleOAUTH(code string, ctx context.Context, id 
 		Role:        userRole{auth.Customer},
 	}
 
-	err = cs.repo.save(&user)
+	err = cs.repo.create(&user)
 	if err != nil {
 		return "", false, err
 	}
@@ -289,59 +439,8 @@ func (cs *customerServiceImpl) googleOAUTH(code string, ctx context.Context, id 
 	return token, false, err
 }
 
-type adminServiceImpl struct {
-	userServiceImpl
-	repo adminRepo
-}
-
-func (us *adminServiceImpl) getUsers(pageNumber, pageSize int) ([]User, int64, error) {
-	params, add, isNil := rfc7807.StartSettingInvalidParams()
-
-	if pageNumber < 1 {
-		add("pageNumber", "Has to be greater than 0")
-	}
-	if pageSize < 1 {
-		add("pageSize", "Has to be greater than 0")
-	}
-
-	if !isNil() {
-		return nil, 0, rfc7807.BadRequest(
-			"users-order-data",
-			"user Order Data Error",
-			"Could not retrieve users due to invalid users order data.",
-		).SetInvalidParams(*params)
-	}
-
-	users, pages, err := us.repo.getUsers(pageNumber, pageSize)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return users, pages, nil
-}
-
-type driverServiceImpl struct {
-	userServiceImpl
-}
-
-type supportEmployeeServiceImpl struct {
-	userServiceImpl
-}
-
 //Declaration functions
 
 func newCustomerServiceImpl(repo customerRepo, client *http.Client) customerService {
-	return &customerServiceImpl{userServiceImpl{repo.repo(), auth.Customer}, repo, client}
-}
-
-func newAdminServiceImpl(repo adminRepo) adminService {
-	return &adminServiceImpl{userServiceImpl{repo.repo(), auth.Admin}, repo}
-}
-
-func newDriverServiceImpl(repo driverRepo) driverService {
-	return &driverServiceImpl{userServiceImpl{repo.repo(), auth.Driver}}
-}
-
-func newSupportEmployeeServiceImpl(repo supportEmployeeRepo) supportEmployeeService {
-	return &supportEmployeeServiceImpl{userServiceImpl{repo.repo(), auth.SupportEmployee}}
+	return &customerServiceImpl{userServiceImpl{repo, auth.Customer}, repo, client}
 }

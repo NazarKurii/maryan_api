@@ -10,8 +10,8 @@ import (
 type LogMock struct {
 }
 
-func (l *LogMock) Do(db *gorm.DB) error {
-	return nil
+func (l *LogMock) Do(db *gorm.DB) {
+
 }
 
 func (l *LogMock) SetProblem(problem rfc7807.Problem) {
