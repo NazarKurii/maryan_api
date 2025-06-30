@@ -1,6 +1,7 @@
 package router
 
 import (
+	"maryan_api/internal/domains/trip"
 	"maryan_api/internal/domains/user"
 	ginutil "maryan_api/pkg/ginutils"
 	"net/http"
@@ -14,5 +15,6 @@ func RegisterRoutes(s *gin.Engine, c *http.Client, db *gorm.DB) {
 
 	s.Use(ginutil.LogMiddlewear(db))
 	user.RegisterRoutes(db, s, c)
+	trip.RegisterRoutes(db, s)
 
 }

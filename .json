@@ -1,0 +1,88 @@
+{
+  "model": "Volvo B11R",
+
+  "isActive": true,
+  "registrantionNumber": "ABC12345",
+  "rows": [
+    {
+      "number": 0,
+      "nextToDriver": true,
+      "seats": [
+        {
+          "number": 1,
+          "separated": false,
+          "nextToDriver": true,
+          "space": false,
+          "rowPosition": 1,
+          "window": true
+        }
+      ]
+    },
+    {
+      "number": 1,
+      "nextToDriver": false,
+      "seats": [
+        {
+          "number": 1,
+          "separated": false,
+          "nextToDriver": false,
+          "space": false,
+          "rowPosition": 1,
+          "window": true
+        },
+        {
+          "number": 2,
+          "separated": false,
+          "nextToDriver": false,
+          "space": false,
+          "rowPosition": 2,
+          "window": false
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "nextToDriver": false,
+      "seats": [
+        {
+          "number": 1,
+          "separated": false,
+          "nextToDriver": false,
+          "space": false,
+          "rowPosition": 1,
+          "window": true
+        },
+        {
+          "number": 2,
+          "separated": false,
+          "nextToDriver": false,
+          "space": false,
+          "rowPosition": 2,
+          "window": false
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "nextToDriver": false,
+      "seats": [
+        {
+          "number": 1,
+          "separated": false,
+          "nextToDriver": false,
+          "space": false,
+          "rowPosition": 1,
+          "window": true
+        },
+        {
+          "number": 2,
+          "separated": false,
+          "nextToDriver": false,
+          "space": false,
+          "rowPosition": 2,
+          "window": false
+        }
+      ]
+    }
+  ]
+}

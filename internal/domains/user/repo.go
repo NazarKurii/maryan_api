@@ -3,6 +3,7 @@ package user
 import (
 	"maryan_api/pkg/dbutil"
 	rfc7807 "maryan_api/pkg/problem"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,11 +16,6 @@ type userRepo interface {
 	getByID(id uuid.UUID) (User, error) //OK
 	login(email string) (uuid.UUID, string, error)
 	userExists(email string) (uuid.UUID, bool, error)
-	emailExists(email string) (bool, error)
-
-	create(user *User) error
-	delete(id uuid.UUID) error
-
 	//-------------Aditional Methods--------------
 	database() *gorm.DB
 	repo() *userRepoMySQL
@@ -29,17 +25,16 @@ type userRepo interface {
 type customerRepo interface {
 	userRepo
 
+	create(user *User) error
+	delete(id uuid.UUID) error
+	emailExists(email string) (bool, error)
 	startEmailVerification(code, email string) (uuid.UUID, error)
 	emailVerificationSession(sessionID uuid.UUID) (EmailVerificationSession, error)
-	completeEmailVerification(sessionID uuid.UUID, email string) (uuid.UUID, error)
-	verifiedEmail(sessionID uuid.UUID) (EmailVerifiedSession, error)
-	useVerifiedEmail(sessionID uuid.UUID) error
+	completeEmailVerification(sessionID uuid.UUID) error
 
 	startNumberVerification(code, number string) (uuid.UUID, error)
 	numberVerificationSession(sessionID uuid.UUID) (NumberVerificationSession, error)
-	completeNumberVerification(sessionID uuid.UUID, number string) (uuid.UUID, error)
-	verifiedNumber(sessionID uuid.UUID) (NumberVerifiedSession, error)
-	useVerifiedNumber(sessionID uuid.UUID) error
+	completeNumberVerification(sessionID uuid.UUID) error
 }
 
 // MYSQL IMPLEMENTATION
@@ -73,14 +68,13 @@ func (mscr *userRepoMySQL) login(email string) (uuid.UUID, string, error) {
 	)
 }
 
-func (mscr *userRepoMySQL) userExists(email string, id uuid.UUID) (bool, error) {
-	var exists bool
-	err := mscr.db.Raw("SELECT EXISTS(SELECT 1 FROM users WHERe email = ? AND id = ?)", email, id).Scan(&exists).Error
-	if err != nil {
-		return false, rfc7807.DB(err.Error())
-	}
+func (mscr *userRepoMySQL) userExists(email string) (uuid.UUID, bool, error) {
+	var user User
 
-	return exists, nil
+	return user.ID, user.ID != uuid.Nil, dbutil.PossibleRawsAffectedError(
+		mscr.db.Select("id").Where("email = ?", email).First(&user),
+		"non-existing-user",
+	)
 }
 
 type customerRepoMySQL struct {
@@ -134,31 +128,11 @@ func (mscr *customerRepoMySQL) emailVerificationSession(sessionID uuid.UUID) (Em
 	return session, dbutil.PossibleFirstError(mscr.db.First(&session), "non-existing-email-verification-session")
 }
 
-func (mscr *customerRepoMySQL) completeEmailVerification(sessionID uuid.UUID, email string) (uuid.UUID, error) {
-	if err := dbutil.PossibleDeleteError(
-		mscr.db.Where("email = ?", email).Delete(&EmailVerificationSession{ID: sessionID}),
-		"non-existing-email-verification-session"); err != nil {
-		return uuid.Nil, err
-	}
-
-	sessionID = uuid.New()
-	return sessionID, dbutil.PossibleCreateError(
-		mscr.db.Create(&EmailVerifiedSession{sessionID, email, time.Now().Add(time.Minute * 10)}),
-		"invalid-verified-email-session-data",
-	)
-}
-
-func (mscr *customerRepoMySQL) verifiedEmail(sessionID uuid.UUID) (EmailVerifiedSession, error) {
-	var session = EmailVerifiedSession{ID: sessionID}
-	return session, dbutil.PossibleFirstError(mscr.db.First(&session), "non-existing-verified-email-session")
-
-}
-
-func (mscr *customerRepoMySQL) useVerifiedEmail(sessionID uuid.UUID) error {
+func (mscr *customerRepoMySQL) completeEmailVerification(sessionID uuid.UUID) error {
 	return dbutil.PossibleDeleteError(
-		mscr.db.Delete(&EmailVerifiedSession{ID: sessionID}),
-		"non-existing-number-verification-session",
-	)
+		mscr.db.Delete(&EmailVerificationSession{ID: sessionID}),
+		"non-existing-email-verification-session")
+
 }
 
 func (mscr *customerRepoMySQL) startNumberVerification(code, number string) (uuid.UUID, error) {
@@ -177,31 +151,40 @@ func (mscr *customerRepoMySQL) numberVerificationSession(sessionID uuid.UUID) (N
 	return session, dbutil.PossibleFirstError(mscr.db.First(&session), "non-existing-number-verification-session")
 }
 
-func (mscr *customerRepoMySQL) completeNumberVerification(sessionID uuid.UUID, number string) (uuid.UUID, error) {
-	if err := dbutil.PossibleDeleteError(
-		mscr.db.Where("number = ?", number).Delete(&NumberVerificationSession{ID: sessionID}),
-		"non-existing-number-verification-session"); err != nil {
-		return uuid.Nil, err
+func (mscr *customerRepoMySQL) completeNumberVerification(sessionID uuid.UUID) error {
+	return dbutil.PossibleDeleteError(
+		mscr.db.Delete(&NumberVerificationSession{ID: sessionID}),
+		"non-existing-number-verification-session")
+}
+
+//Admin Repo
+
+type adminRepo interface {
+	userRepo
+	users(pageNumber, pageSize int) ([]User, int, error)
+}
+
+type adminRepoMySQL struct {
+	userRepoMySQL
+}
+
+func (msar *adminRepoMySQL) users(pageNumber, pageSize int) ([]User, int, error) {
+	pageNumber--
+	var users []User
+
+	err := dbutil.PossibleRawsAffectedError(msar.db.Limit(pageSize).Offset(pageNumber*pageSize).Find(&users), "non-existing-page")
+	if err != nil {
+		return nil, 0, err
 	}
 
-	sessionID = uuid.New()
-	return sessionID, dbutil.PossibleCreateError(
-		mscr.db.Create(&NumberVerifiedSession{sessionID, number, time.Now().Add(time.Minute * 10)}),
-		"invalid-verified-number-session-data",
-	)
-}
+	var totalUsers int64
 
-func (mscr *customerRepoMySQL) verifiedNumber(sessionID uuid.UUID) (NumberVerifiedSession, error) {
-	var session = NumberVerifiedSession{ID: sessionID}
-	return session, dbutil.PossibleFirstError(mscr.db.First(&session), "non-existing-verified-number-session")
+	err = msar.db.Model(&User{}).Count(&totalUsers).Error
+	if err != nil || totalUsers == 0 {
+		return nil, 0, rfc7807.DB("Could not count users.")
+	}
 
-}
-
-func (mscr *customerRepoMySQL) useVerifiedNumber(sessionID uuid.UUID) error {
-	return dbutil.PossibleDeleteError(
-		mscr.db.Delete(&NumberVerifiedSession{ID: sessionID}),
-		"non-existing-number-verification-session",
-	)
+	return users, int(math.Ceil(float64(totalUsers) / float64(pageSize))), nil
 
 }
 
@@ -209,4 +192,8 @@ func (mscr *customerRepoMySQL) useVerifiedNumber(sessionID uuid.UUID) error {
 
 func newCustomerRepoMySQL(db *gorm.DB) customerRepo {
 	return &customerRepoMySQL{userRepoMySQL{db}}
+}
+
+func newAdminRepoMySQL(db *gorm.DB) adminRepo {
+	return &adminRepoMySQL{userRepoMySQL{db}}
 }

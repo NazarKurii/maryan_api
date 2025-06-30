@@ -215,21 +215,9 @@ type EmailVerificationSession struct {
 	Expires time.Time `gorm:"not null" json:"expires"`
 }
 
-type EmailVerifiedSession struct {
-	ID      uuid.UUID ` json:"id"`
-	Email   string    `gorm:"type:varchar(255);not null" json:"email"`
-	Expires time.Time `gorm:"not null" json:"expires"`
-}
-
 type NumberVerificationSession struct {
 	ID      uuid.UUID `json:"id"`
 	Code    string    `gorm:"type:char(6);not null" json:"code"`
-	Number  string    `gorm:"type:varchar(15);not null" json:"number"`
-	Expires time.Time `gorm:"not null" json:"expires"`
-}
-
-type NumberVerifiedSession struct {
-	ID      uuid.UUID ` json:"id"`
 	Number  string    `gorm:"type:varchar(15);not null" json:"number"`
 	Expires time.Time `gorm:"not null" json:"expires"`
 }
@@ -239,12 +227,7 @@ type NumberVerifiedSession struct {
 func Migrate(db *gorm.DB) {
 	db.AutoMigrate(
 		&User{},
-		&EmailVerificationSession{},
-		&EmailVerifiedSession{},
-		&NumberVerificationSession{},
-		&NumberVerifiedSession{},
 	)
-
 }
 
 // -----------------HyperMedia------------------------

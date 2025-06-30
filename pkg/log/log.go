@@ -23,7 +23,7 @@ type Log struct {
 	Route       string          `gorm:"type:varchar(255); not null" json:"route"`
 	QueryParams json.RawMessage `gorm:"type:json; " json:"queryParams"`
 	Headers     json.RawMessage `gorm:"type:json; not null" json:"headers"`
-	Body        json.RawMessage `gorm:"type:json; " json:"body"`
+	Body        json.RawMessage `gorm:"type:json" json:"body"`
 	Method      string          `gorm:"type:varchar(7);not null" json:"method"`
 	Failed      bool            `gorm:"not null" json:"failed"`
 	Type        string          `gorm:"type:varchar(255);not null" json:"type"`
@@ -31,6 +31,13 @@ type Log struct {
 	Status      int             `gorm:"type:smallint;not null" json:"status"`
 	Detail      string          `gorm:"type:varchar(255);not null" json:"detail"`
 	Extentions  json.RawMessage `gorm:"type:json" json:"extensions"`
+}
+
+func Migrate(db *gorm.DB) {
+	err := db.AutoMigrate(&Log{})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (l *Log) Do(db *gorm.DB) {

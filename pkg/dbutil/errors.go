@@ -45,6 +45,15 @@ func PossibleRawsAffectedError(result *gorm.DB, errType string) error {
 	return nil
 }
 
+func PossibleDbError(result *gorm.DB) error {
+
+	if result.Error != nil {
+		return rfc7807.DB(result.Error.Error())
+	}
+
+	return nil
+}
+
 func PossibleFirstError(result *gorm.DB, errType string) error {
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {

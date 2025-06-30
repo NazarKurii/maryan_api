@@ -5,6 +5,7 @@ import (
 	ginutil "maryan_api/pkg/ginutils"
 	"maryan_api/pkg/hypermedia"
 	rfc7807 "maryan_api/pkg/problem"
+	"maryan_api/pkg/security"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +17,7 @@ import (
 func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 
 	//CUSTOMER ROUTES
-	customer := newCustomerHandler(newCustomerServiceImpl(newCustomerRepoMySQL(db), client))
+	customer := newcustomerHandler(newCustomerServiceImpl(newCustomerRepoMySQL(db), client))
 	authCustomerRouter := ginutil.CreateAuthRouter("/customer", customer.service.secretKey(), s)
 	customerRouter := s.Group("/customer")
 
@@ -35,6 +36,13 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 	authCustomerRouter.DELETE("", customer.delete)
 
 	//ADMIN ROUTES
+	admin := newAdminHandler(newAdminServiceImpl(newAdminRepoMySQL(db), client))
+	authAdminRouter := ginutil.CreateAuthRouter("/admin", admin.service.secretKey(), s)
+	adminRouter := s.Group("/admin")
+
+	adminRouter.POST("/login", admin.login)
+	authAdminRouter.GET("/users/:page/:size", admin.users)
+	adminRouter.POST("/hash-password", admin.hashPassword)
 
 }
 
@@ -108,12 +116,12 @@ func (uh userHandler) loginJWT(c *gin.Context) {
 	})
 }
 
-type CustomerHandler struct {
+type customerHandler struct {
 	userHandler
 	service customerService
 }
 
-func (ch CustomerHandler) verifyEmail(c *gin.Context) {
+func (ch customerHandler) verifyEmail(c *gin.Context) {
 	var email struct {
 		Val string `json:"email"`
 	}
@@ -153,7 +161,7 @@ func (ch CustomerHandler) verifyEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func (ch CustomerHandler) verifyEmailCode(c *gin.Context) {
+func (ch customerHandler) verifyEmailCode(c *gin.Context) {
 	var code struct {
 		Val string `json:"code"`
 	}
@@ -187,7 +195,7 @@ func (ch CustomerHandler) verifyEmailCode(c *gin.Context) {
 
 }
 
-func (ch CustomerHandler) verifyNumber(c *gin.Context) {
+func (ch customerHandler) verifyNumber(c *gin.Context) {
 	var number struct {
 		Val string `json:"number"`
 	}
@@ -214,7 +222,7 @@ func (ch CustomerHandler) verifyNumber(c *gin.Context) {
 	)
 }
 
-func (ch CustomerHandler) verifyNumberCode(c *gin.Context) {
+func (ch customerHandler) verifyNumberCode(c *gin.Context) {
 	var code struct {
 		Val string `json:"code"`
 	}
@@ -248,7 +256,7 @@ func (ch CustomerHandler) verifyNumberCode(c *gin.Context) {
 
 }
 
-func (ch CustomerHandler) googleOAUTH(c *gin.Context) {
+func (ch customerHandler) googleOAUTH(c *gin.Context) {
 	var request struct {
 		Code string `json:"code"`
 	}
@@ -279,7 +287,7 @@ func (ch CustomerHandler) googleOAUTH(c *gin.Context) {
 	})
 }
 
-func (ch CustomerHandler) register(c *gin.Context) {
+func (ch customerHandler) register(c *gin.Context) {
 	var user User
 
 	if err := c.ShouldBindJSON(&user); err != nil {
@@ -324,7 +332,7 @@ func (ch CustomerHandler) register(c *gin.Context) {
 	})
 }
 
-func (ch CustomerHandler) delete(c *gin.Context) {
+func (ch customerHandler) delete(c *gin.Context) {
 
 	err := ch.service.delete(c.MustGet("userID").(uuid.UUID))
 	if err != nil {
@@ -342,7 +350,7 @@ func (ch CustomerHandler) delete(c *gin.Context) {
 	})
 
 }
-func (uh CustomerHandler) get(c *gin.Context) {
+func (uh customerHandler) get(c *gin.Context) {
 	user, err := uh.service.get(c.MustGet("userID").(uuid.UUID))
 	if err != nil {
 		ginutil.ServiceErrorAbort(c, err)
@@ -361,8 +369,62 @@ func (uh CustomerHandler) get(c *gin.Context) {
 	})
 }
 
+//Admin Hadler
+
+type adminHandler struct {
+	userHandler
+	service adminService
+}
+
+func (ah *adminHandler) users(c *gin.Context) {
+	users, urls, err := ah.service.users(c.Param("page"), c.Param("size"))
+	if err != nil {
+		ginutil.ServiceErrorAbort(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, struct {
+		ginutil.Response
+		Users []User `json:"users"`
+	}{ginutil.Response{
+		"Users have successfuly been retrieved.",
+		urls,
+	},
+		users})
+}
+
+func (ah *adminHandler) hashPassword(c *gin.Context) {
+	var password struct {
+		Val string `json:"password"`
+	}
+
+	err := c.ShouldBindJSON(&password)
+	if err != nil {
+		ginutil.HandlerProblemAbort(c, rfc7807.BadRequest("invalid-password", "Invalid Passrord Error", err.Error()))
+		return
+	}
+
+	hashedPassword, err := security.HashPassword(password.Val)
+	if err != nil {
+		ginutil.HandlerProblemAbort(c, rfc7807.BadRequest("invalid-password", "Invalid Passrord Error", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, struct {
+		ginutil.Response
+		Password string `json:"password"`
+	}{
+		ginutil.Response{Message: "The password has successfuly been hashed"},
+		hashedPassword,
+	})
+}
+
 //Declaration functions
 
-func newCustomerHandler(service customerService) CustomerHandler {
-	return CustomerHandler{userHandler: userHandler{service.userService()}, service: service}
+func newcustomerHandler(service customerService) customerHandler {
+	return customerHandler{userHandler: userHandler{service.userService()}, service: service}
+}
+
+func newAdminHandler(service adminService) adminHandler {
+	return adminHandler{userHandler: userHandler{service.userService()}, service: service}
 }

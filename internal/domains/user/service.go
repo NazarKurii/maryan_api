@@ -4,21 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"maryan_api/config"
 	google "maryan_api/internal/infrastructure/clients/googleoauth"
 	"maryan_api/internal/infrastructure/clients/verification"
 	"maryan_api/pkg/auth"
+	"maryan_api/pkg/hypermedia"
+	"maryan_api/pkg/images"
 	rfc7807 "maryan_api/pkg/problem"
 	"maryan_api/pkg/security"
 	"mime/multipart"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/nyaruka/phonenumbers"
 )
@@ -139,20 +140,60 @@ type customerServiceImpl struct {
 	client *http.Client
 }
 
+func (cs *customerServiceImpl) VerifyEmailToken(token string, email string) error {
+	claims, err := auth.VerifyAccessToken(token, config.EmailAccessTokenSecretKey(), []auth.ClaimValidation{{
+		"email",
+		true,
+		auth.ClaimString,
+	}})
+
+	if err != nil {
+		return errors.New("Invalid email access token.")
+	}
+
+	tokenEmail := claims[0].(string)
+	if email != tokenEmail {
+		return errors.New("Invalid email access token. Sent email does not mach the one in the token")
+	}
+
+	return nil
+
+}
+
+func (cs *customerServiceImpl) VerifyNumberToken(token string, number string) error {
+	claims, err := auth.VerifyAccessToken(token, config.EmailAccessTokenSecretKey(), []auth.ClaimValidation{{
+		"number",
+		true,
+		auth.ClaimString,
+	}})
+
+	if err != nil {
+		return errors.New("Invalid number access token.")
+	}
+
+	tokenNumber := claims[0].(string)
+	if number != tokenNumber {
+		return errors.New("Invalid number access token. Sent number does not mach the one in the token")
+	}
+
+	return nil
+
+}
+
 func (cs *customerServiceImpl) register(u *User, image *multipart.FileHeader, emailAccessToken, numberAccessToken string) (string, error) {
 	params := u.validate()
 	if err := u.fomratPhoneNumber(); err != nil {
 		params.SetInvalidParam("phoneNumber", err.Error())
 	}
 
-	emailSessionID, err := cs.AccessEmail(u.Email, emailAccessToken)
+	err := cs.VerifyEmailToken(emailAccessToken, u.Email)
 	if err != nil {
-		params.SetInvalidParam("emailAccessToken", err.Error())
+		params.SetInvalidParam("EmailToken", err.Error())
 	}
 
-	numberSessionID, err := cs.AccessNumber(u.PhoneNumber, numberAccessToken)
+	err = cs.VerifyNumberToken(numberAccessToken, u.PhoneNumber)
 	if err != nil {
-		params.SetInvalidParam("emailAccessToken", err.Error())
+		params.SetInvalidParam("EmailToken", err.Error())
 	}
 
 	if params != nil {
@@ -167,12 +208,12 @@ func (cs *customerServiceImpl) register(u *User, image *multipart.FileHeader, em
 	u.ID = uuid.New()
 
 	if image != nil {
-		url := config.APIURL() + "/static/imgs/" + u.ID.String()
-		err := saveUserImage(url, image)
+
+		err := images.Save("../../../static/imgs/"+u.ID.String(), image)
 		if err != nil {
 			return "", rfc7807.Internal("image-saving-error", err.Error())
 		}
-		u.ImageUrl = url
+		u.ImageUrl = config.APIURL() + "/imgs/" + u.ID.String()
 	} else {
 		u.ImageUrl = config.APIURL() + "/imgs/guest-female.png"
 	}
@@ -183,86 +224,8 @@ func (cs *customerServiceImpl) register(u *User, image *multipart.FileHeader, em
 		return "", err
 	}
 
-	err = cs.repo.useVerifiedEmail(emailSessionID)
-	if err != nil {
-		return "", err
-	}
-	err = cs.repo.useVerifiedNumber(numberSessionID)
-	if err != nil {
-		return "", err
-	}
-
 	token, err := u.Role.Val.GenerateToken(u.Email, u.ID)
 	return token, err
-}
-
-func (cs *customerServiceImpl) AccessEmail(email, token string) (uuid.UUID, error) {
-
-	sessionID, err := auth.VerifyAccessToken(token, config.EmailAccessTokenSecretKey())
-
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	session, err := cs.repo.verifiedEmail(sessionID)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	if session.Expires.Before(time.Now()) {
-		return uuid.Nil, errors.New("Provided Token has Expired.")
-	}
-
-	if session.Email != email {
-		return uuid.Nil, errors.New("Email assosiated with access token differs from the provided one.")
-	}
-
-	return sessionID, nil
-}
-
-func (cs *customerServiceImpl) AccessNumber(number, token string) (uuid.UUID, error) {
-
-	sessionID, err := auth.VerifyAccessToken(token, config.NumberAccessTokenSecretKey())
-
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	session, err := cs.repo.verifiedNumber(sessionID)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	if session.Expires.Before(time.Now()) {
-		return uuid.Nil, errors.New("Provided Token has Expired.")
-	}
-
-	if session.Number != number {
-		return uuid.Nil, errors.New("Number assosiated with access token differs from the provided one.")
-	}
-
-	return sessionID, nil
-}
-
-func saveUserImage(path string, image *multipart.FileHeader) error {
-	src, err := image.Open()
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	if err = os.MkdirAll(filepath.Dir(path), 0750); err != nil {
-		return err
-	}
-
-	out, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, src)
-	return err
 }
 
 func (us *customerServiceImpl) delete(id uuid.UUID) error {
@@ -293,7 +256,7 @@ func (cs *customerServiceImpl) verifyEmail(email string) (string, bool, error) {
 		return "", false, err
 	}
 
-	token, err := auth.GenerateAccessToken(sessionID, config.EmailAccessTokenSecretKey(), time.Minute*10)
+	token, err := auth.GenerateAccessToken(config.EmailAccessTokenSecretKey(), jwt.MapClaims{"email": email, "id": sessionID.String()})
 
 	return token, false, err
 }
@@ -322,7 +285,14 @@ func (cs *customerServiceImpl) verifyEmailCode(code, token string) (string, erro
 		return "", err
 	}
 
-	sessionID, err := auth.VerifyAccessToken(token, config.EmailAccessTokenSecretKey())
+	claims, err := auth.VerifyAccessToken(token, config.EmailAccessTokenSecretKey(), []auth.ClaimValidation{
+		{"email", true, auth.ClaimString},
+		{"id", true, auth.ClaimUUID},
+	})
+
+	email := claims[0].(string)
+	sessionID := claims[0].(uuid.UUID)
+
 	if err != nil {
 		return "", rfc7807.Unauthorized("email-code-verification-token", "Unauthorized", "Unauthorized")
 	}
@@ -333,19 +303,23 @@ func (cs *customerServiceImpl) verifyEmailCode(code, token string) (string, erro
 	}
 
 	if session.Expires.Before(time.Now()) {
-		return "", rfc7807.New(http.StatusGone, "expired-session", "Expired Session Error", "The sesion has expired and no longer can be used to verify th email")
+		return "", rfc7807.New(http.StatusGone, "expired-session", "Expired Session Error", "The sesion has expired and no longer can be used to verify th email.")
+	}
+
+	if email != session.Code {
+		return "", rfc7807.BadRequest("incorect-email-verification-token", "Incorect Email Verification Token Error", "Provided token does not match the previously sent one.")
 	}
 
 	if code != session.Code {
-		return "", rfc7807.BadRequest("incorect-email-verification-code", "Incorect Email Verification Code Error", "Provided code does not match the sent one")
+		return "", rfc7807.BadRequest("incorect-email-verification-code", "Incorect Email Verification Code Error", "Provided code does not match the sent one.")
 	}
 
-	sessionID, err = cs.repo.completeEmailVerification(sessionID, session.Email)
+	err = cs.repo.completeEmailVerification(sessionID)
 	if err != nil {
 		return "", err
 	}
 
-	return auth.GenerateAccessToken(sessionID, config.EmailAccessTokenSecretKey(), time.Minute*10)
+	return auth.GenerateAccessToken(config.EmailAccessTokenSecretKey(), jwt.MapClaims{"email": email})
 }
 
 func (cs *customerServiceImpl) verifyNumber(number string) (string, error) {
@@ -368,7 +342,7 @@ func (cs *customerServiceImpl) verifyNumber(number string) (string, error) {
 		return "", err
 	}
 
-	return auth.GenerateAccessToken(sessionID, config.NumberAccessTokenSecretKey(), time.Minute*10)
+	return auth.GenerateAccessToken(config.NumberAccessTokenSecretKey(), jwt.MapClaims{"number": phonenumbers.Format(num, phonenumbers.E164), "id": sessionID})
 }
 
 func (cs *customerServiceImpl) verifyNumberCode(code, token string) (string, error) {
@@ -377,7 +351,14 @@ func (cs *customerServiceImpl) verifyNumberCode(code, token string) (string, err
 		return "", err
 	}
 
-	sessionID, err := auth.VerifyAccessToken(token, config.NumberAccessTokenSecretKey())
+	claims, err := auth.VerifyAccessToken(token, config.NumberAccessTokenSecretKey(), []auth.ClaimValidation{
+		{"number", true, auth.ClaimString},
+		{"id", true, auth.ClaimUUID},
+	})
+
+	number := claims[0].(string)
+	sessionID := claims[0].(uuid.UUID)
+
 	if err != nil {
 		return "", rfc7807.Unauthorized("email-code-verification-token", "Unauthorized", "Unauthorized")
 	}
@@ -385,6 +366,10 @@ func (cs *customerServiceImpl) verifyNumberCode(code, token string) (string, err
 	session, err := cs.repo.numberVerificationSession(sessionID)
 	if err != nil {
 		return "", err
+	}
+
+	if number != session.Number {
+		return "", rfc7807.BadRequest("incorect-number-verification-token", "Incorect Number Verification Token Error", "Provided token does not match the sent one")
 	}
 
 	if session.Expires.Before(time.Now()) {
@@ -395,12 +380,12 @@ func (cs *customerServiceImpl) verifyNumberCode(code, token string) (string, err
 		return "", rfc7807.BadRequest("incorect-number-verification-code", "Incorect Number Verification Code Error", "Provided code does not match the sent one")
 	}
 
-	sessionID, err = cs.repo.completeNumberVerification(sessionID, session.Number)
+	err = cs.repo.completeNumberVerification(sessionID)
 	if err != nil {
 		return "", err
 	}
 
-	return auth.GenerateAccessToken(sessionID, config.NumberAccessTokenSecretKey(), time.Minute*10)
+	return auth.GenerateAccessToken(config.NumberAccessTokenSecretKey(), jwt.MapClaims{"number": number})
 }
 
 func (cs *customerServiceImpl) googleOAUTH(code string, ctx context.Context, id uuid.UUID) (string, bool, error) {
@@ -439,8 +424,67 @@ func (cs *customerServiceImpl) googleOAUTH(code string, ctx context.Context, id 
 	return token, false, err
 }
 
+//Admin Service
+
+type adminService interface {
+	userService
+
+	users(pageNumber, pageSize string) ([]User, hypermedia.Links, error)
+}
+type adminServiceImpl struct {
+	userServiceImpl
+	repo   adminRepo
+	client *http.Client
+}
+
+func (asi adminServiceImpl) SecretKey() []byte {
+	return config.AdminSecretKey()
+}
+
+func (asi adminServiceImpl) userService() userService {
+	return &asi.userServiceImpl
+}
+
+func (asi adminServiceImpl) users(pageNumberStr, pageSizeStr string) ([]User, hypermedia.Links, error) {
+	var params rfc7807.InvalidParams
+
+	pageNumber, err := strconv.Atoi(pageNumberStr)
+	if err != nil {
+		params.SetInvalidParam("pageNumber", err.Error())
+	} else if pageNumber < 1 {
+		params.SetInvalidParam("pageNumber", "Must be equal or greater than 1.")
+	}
+
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil {
+		params.SetInvalidParam("pageSize", err.Error())
+	} else if pageSize < 1 {
+		params.SetInvalidParam("pageSize", "Must be equal or greater than 1.")
+	}
+
+	if params != nil {
+		return nil, nil, rfc7807.BadRequest("invalid-page-data", "Page Data Error", "Invalid request params.", params...)
+	}
+
+	users, pages, err := asi.repo.users(pageNumber, pageSize)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var pagesUrls = make(hypermedia.Links, pages)
+	for i := 0; i < pages; i++ {
+		pagesUrls[i] = hypermedia.Link{strconv.Itoa(i + 1): hypermedia.Href{config.APIURL() + fmt.Sprintf("/admin/users/%d/%d", i+1, pageSize), http.MethodGet}}
+	}
+
+	return users, pagesUrls, nil
+}
+
 //Declaration functions
 
 func newCustomerServiceImpl(repo customerRepo, client *http.Client) customerService {
 	return &customerServiceImpl{userServiceImpl{repo, auth.Customer}, repo, client}
+}
+
+func newAdminServiceImpl(repo adminRepo, client *http.Client) adminService {
+	return &adminServiceImpl{userServiceImpl{repo, auth.Admin}, repo, client}
 }

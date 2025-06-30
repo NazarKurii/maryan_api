@@ -1,4 +1,4 @@
-package ticket
+package trip
 
 // type Ticket struct {
 // 	ID              uint                `gorm:"primaryKey; autoincrement"`

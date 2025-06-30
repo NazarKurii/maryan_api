@@ -1,0 +1,4 @@
+{
+  "email": "user9@example.com",
+  "password": "hashed_password_9"
+}

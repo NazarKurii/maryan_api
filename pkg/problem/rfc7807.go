@@ -124,4 +124,8 @@ func DB(detail string) Problem {
 	return BadGateway("database", "Database Error", detail)
 }
 
+func UUID(detail string) error {
+	return BadRequest("invalid-id-format", "Invalid ID Format", detail)
+}
+
 type Extensions map[string]any

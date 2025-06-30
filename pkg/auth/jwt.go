@@ -26,22 +26,35 @@ func generateToken(email string, userID uuid.UUID, role Role) (string, error) {
 	return signedToken, nil
 }
 
-func GenerateAccessToken(id uuid.UUID, secretKey []byte, duration time.Duration) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":      id.String(),
-		"expires": time.Now().Add(duration).Unix(),
-	})
+func GenerateAccessToken(secretKey []byte, claims jwt.MapClaims) (string, error) {
+	claims["expires"] = time.Now().Add(time.Minute * 10).Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	signedToken, err := token.SignedString(secretKey)
 
 	if err != nil {
-		return "", rfc7807.DB("Could not generate access token.")
+		return "", rfc7807.Internal("Token Generation Error", "Could not generate access token.")
 	}
 
 	return signedToken, nil
 }
 
-func VerifyAccessToken(token string, secretKey []byte) (uuid.UUID, error) {
+type ClaimValidation struct {
+	Name       string
+	Returnable bool
+	Type       claimType
+}
+
+type claimType int
+
+const (
+	ClaimString  claimType = 0
+	ClaimFloat64 claimType = 1
+	ClaimInt64   claimType = 2
+	ClaimUUID    claimType = 3
+)
+
+func VerifyAccessToken(token string, secretKey []byte, claimsValidations []ClaimValidation) ([]any, error) {
 	parsedToken, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("Unexpected signing method")
@@ -51,33 +64,62 @@ func VerifyAccessToken(token string, secretKey []byte) (uuid.UUID, error) {
 	})
 
 	if err != nil {
-		return uuid.Nil, err
+		return nil, err
 	}
 
 	if !parsedToken.Valid {
-		return uuid.Nil, errors.New("Invalid token")
+		return nil, errors.New("Invalid token")
 	}
 
-	claims, ok := parsedToken.Claims.(jwt.MapClaims)
+	tokenClaims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return uuid.Nil, errors.New("Invalid token")
+		return nil, errors.New("Invalid token")
 	}
 
-	id, err := uuid.Parse(claims["id"].(string))
-	if err != nil {
-		return uuid.Nil, errors.New("Invalid token")
-	}
-
-	expires, ok := claims["expires"].(float64)
+	expires, ok := tokenClaims["expires"].(float64)
 	if !ok {
-		return uuid.Nil, errors.New("Invalid token")
+		return nil, errors.New("Invalid token")
 	}
 
 	if time.Unix(int64(expires), 0).Before(time.Now()) {
-		return uuid.Nil, errors.New("The token has expired")
+		return nil, errors.New("The token has expired")
 	}
 
-	return id, nil
+	var claims []any
+	var value any
+
+	for _, claimValidation := range claimsValidations {
+		switch claimValidation.Type {
+		case ClaimString:
+			value, ok = tokenClaims[claimValidation.Name].(string)
+		case ClaimInt64:
+			value, ok = tokenClaims[claimValidation.Name].(int64)
+		case ClaimFloat64:
+			value, ok = tokenClaims[claimValidation.Name].(float64)
+		case ClaimUUID:
+			valueStr, exists := tokenClaims[claimValidation.Name].(string)
+			if !exists {
+				return nil, errors.New("Invalid token")
+			}
+			var err error
+			value, err = uuid.Parse(valueStr)
+			if err != nil {
+				ok = false
+			}
+		default:
+			return nil, errors.New("Invalid token")
+		}
+
+		if !ok {
+			return nil, errors.New("Invalid token")
+		}
+
+		if claimValidation.Returnable {
+			claims = append(claims, value)
+		}
+	}
+
+	return claims, nil
 }
 
 func verifyUserToken(token string, secretKey []byte) (uuid.UUID, string, Role, error) {
