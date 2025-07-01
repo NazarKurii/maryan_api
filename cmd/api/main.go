@@ -2,9 +2,9 @@ package main
 
 import (
 	"maryan_api/config"
-	"maryan_api/internal/infrastructure/db"
-	"maryan_api/internal/infrastructure/db/migrations"
-	"maryan_api/internal/router"
+	dataStore "maryan_api/internal/infrastructure/persistence"
+	"maryan_api/internal/infrastructure/router"
+
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,12 +12,12 @@ import (
 
 func main() {
 	config.LoadConfig("../../.env")
-	db := db.Init()
-	migrations.Migrate(db)
+	db := dataStore.Init()
+	dataStore.Migrate(db)
 
 	server := gin.Default()
 	client := http.DefaultClient
-	router.RegisterRoutes(server, client, db)
+	router.RegisterRoutes(server, db, client)
 
 	server.Run(":8080")
 }

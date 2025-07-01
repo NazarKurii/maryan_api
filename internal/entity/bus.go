@@ -1,11 +1,12 @@
-package trip
+package entity
 
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"maryan_api/pkg/hypermedia"
 	rfc7807 "maryan_api/pkg/problem"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,8 @@ type Bus struct {
 	Images             BusImages    `gorm:"not null" json:"imageURL"`
 	IsActive           bool         `gorm:"not null" json:"isActive"`
 	RegistrationNumber string       `gorm:"type:varchar(8); not null; unique" json:"registrantionNumber"`
+	Year               int          `gorm:"type:smallint; not null" json:"year"`
+	GpsTrackerID       string       `gorm:"type:varchar(255); not null" json:"gpsTrackerID"`
 	Rows               []Row        `gorm:"foreignKey:BusID" json:"rows"`
 	CreatedAt          time.Time    `gorm:"not null" json:"createdAt"`
 	UpdatedAt          time.Time    `gorm:"not null" json:"updatedAt"`
@@ -29,6 +32,7 @@ type Row struct {
 	Number uint8     `gorm:"not null" json:"number"`
 	Seats  []Seat    `json:"seats"`
 }
+
 type Seat struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey;" json:"id"`
 	RowID        uuid.UUID `gorm:"type:uuid;not null" json:"rowID"`
@@ -70,10 +74,14 @@ func (bi *BusImages) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (b *Bus) prepare() rfc7807.InvalidParams {
+func (b *Bus) Prepare() rfc7807.InvalidParams {
 	var params rfc7807.InvalidParams
 	if b.Model == "" {
 		params.SetInvalidParam("model", "Invalid bus model.")
+	}
+
+	if b.Year < 1990 {
+		params.SetInvalidParam("year", "Invalid production year.")
 	}
 
 	if b.RegistrationNumber == "" {
@@ -119,23 +127,56 @@ func (b *Bus) prepare() rfc7807.InvalidParams {
 	return params
 }
 
-// -------------Links-----------------
-var createBusLink = hypermedia.Link{
-	"createBus": {Href: "/bus", Method: "POST"},
+type BusPaginationStr struct {
+	Page     string
+	Size     string
+	OrderBy  string
+	OrderWay string
 }
 
-var listBusesLink = hypermedia.Link{
-	"listBuses": {Href: "/bus", Method: "GET"},
+type BusPagination struct {
+	Page  int
+	Size  int
+	Order string
 }
 
-var deleteBusLink = hypermedia.Link{
-	"deleteBus": {Href: "/bus", Method: "DELETE"},
-}
+func (bpstr BusPaginationStr) Parse() (BusPagination, error) {
+	var params rfc7807.InvalidParams
+	var err error
+	stringToInt := func(s string, name string, destination *int) {
+		*destination, err = strconv.Atoi(s)
+		if err != nil {
+			if errors.Is(err, strconv.ErrSyntax) {
+				params.SetInvalidParam(name, err.Error())
+			} else {
 
-var makeBusActiveLink = hypermedia.Link{
-	"makeBusActive": {Href: "/bus/make-active", Method: "PUT"},
-}
+			}
+		} else if *destination < 1 {
+			params.SetInvalidParam(name, "Must be equal or greater than 1.")
+		}
+	}
 
-var makeBusInactiveLink = hypermedia.Link{
-	"makeBusInactive": {Href: "/bus/make-inactive", Method: "PUT"},
+	var cfg BusPagination
+
+	stringToInt(bpstr.Page, "pageNumber", &cfg.Page)
+	stringToInt(bpstr.Size, "pageSize", &cfg.Size)
+
+	switch bpstr.OrderBy {
+	case "name", "date", "year", "manufaturer":
+		cfg.Order += bpstr.OrderBy
+	default:
+		params.SetInvalidParam("orderBy", "non-existing orderBy param.")
+	}
+
+	switch bpstr.OrderWay {
+	case "DESC", "ASC":
+		cfg.Order += "" + bpstr.OrderWay
+	default:
+		params.SetInvalidParam("orderWay", "non-existing orderWay param.")
+	}
+
+	if params != nil {
+		return BusPagination{}, rfc7807.BadRequest("invalid-bus-pagination-data", "Invalid Bus Pagination Data Error", "Provided data is invald.", params...)
+	}
+	return cfg, nil
 }

@@ -1,4 +1,4 @@
-package user
+package entity
 
 import (
 	"database/sql"
@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"maryan_api/config"
 	"maryan_api/pkg/auth"
-	"maryan_api/pkg/hypermedia"
 	rfc7807 "maryan_api/pkg/problem"
 	"maryan_api/pkg/security"
 	"strings"
@@ -33,7 +33,7 @@ type User struct {
 	Password    string       `gorm:"type:varchar(255);not null" json:"password"  binding:"required"`
 	ImageUrl    string       `gorm:"type:varchar(255);not null" json:"imageUrl"`
 	Sex         userSex      `gorm:"type:enum('Female','Male');not null" json:"sex"`
-	Role        userRole     `gorm:"type:enum('Customer','Admin','Driver','Support Employee');not null" json:"role"`
+	Role        userRole     `gorm:"type:enum('Customer','Admin','Driver','Support');not null" json:"role"`
 	CreatedAt   time.Time    `gorm:"not null" json:"createdAt"`
 	UpdatedAt   time.Time    `gorm:"not null" json:"updatedAt"`
 	DeletedAt   sql.NullTime `gorm:"index" json:"deletedAt"`
@@ -203,28 +203,9 @@ func (u *User) validate() rfc7807.InvalidParams {
 	return params
 }
 
-const (
-	emailSession = iota
-	numberSession
-)
-
-type EmailVerificationSession struct {
-	ID      uuid.UUID `json:"id"`
-	Code    string    `gorm:"type:char(6);not null" json:"code"`
-	Email   string    `gorm:"type:varchar(255);not null" json:"email"`
-	Expires time.Time `gorm:"not null" json:"expires"`
-}
-
-type NumberVerificationSession struct {
-	ID      uuid.UUID `json:"id"`
-	Code    string    `gorm:"type:char(6);not null" json:"code"`
-	Number  string    `gorm:"type:varchar(15);not null" json:"number"`
-	Expires time.Time `gorm:"not null" json:"expires"`
-}
-
 //----------------- Migrations ----------------------
 
-func Migrate(db *gorm.DB) {
+func MigrateUser(db *gorm.DB) {
 	db.AutoMigrate(
 		&User{},
 	)
@@ -232,50 +213,8 @@ func Migrate(db *gorm.DB) {
 
 // -----------------HyperMedia------------------------
 
-var (
-	guestLink = hypermedia.Link{
-		"create": {Href: "/customer/guest", Method: "POST"},
-	}
-
-	verifyEmailLink = hypermedia.Link{
-		"verifyEmail": {Href: "/customer/verify-email", Method: "POST"},
-	}
-
-	verifyNumberLink = hypermedia.Link{
-		"verifyPhoneNumber": {Href: "/customer/verify-number", Method: "POST"},
-	}
-
-	verifyNumberCodeLink = hypermedia.Link{
-		"codeVerification": {Href: "/customer/code-verification", Method: "POST"},
-	}
-
-	googleOAuthLink = hypermedia.Link{
-		"loginOAuth": {Href: "/customer/google-oauth", Method: "POST"},
-	}
-
-	getUserLink = hypermedia.Link{
-		"self": {Href: "/customer/user", Method: "GET"},
-	}
-
-	registerUserLink = hypermedia.Link{
-		"register": {Href: "/customer/user", Method: "POST"},
-	}
-
-	deleteUserLink = hypermedia.Link{
-		"delete": {Href: "/customer/user", Method: "DELETE"},
-	}
-
-	loginLink = hypermedia.Link{
-		"login": {Href: "/customer/login", Method: "POST"},
-	}
-
-	loginJWTLink = hypermedia.Link{
-		"loginJWT": {Href: "/customer/login-jwt", Method: "POST"},
-	}
-)
-
 // ----------------strcuct-manipulations------------------
-type ShortUser struct {
+type UserSimplified struct {
 	ID          uuid.UUID `json:"id"`
 	FirstName   string    `json:"firstName"`
 	LastName    string    `json:"lastName"`
@@ -286,8 +225,8 @@ type ShortUser struct {
 	Sex         userSex   `json:"sex"`
 }
 
-func (user User) toShortUser() ShortUser {
-	return ShortUser{
+func (user User) ToSimplified() UserSimplified {
+	return UserSimplified{
 		ID:          user.ID,
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
@@ -298,7 +237,7 @@ func (user User) toShortUser() ShortUser {
 	}
 }
 
-func (su ShortUser) toUserDB() (User, error) {
+func (su UserSimplified) ToUser(role auth.Role) (User, error) {
 	dob, err := time.Parse(time.RFC3339, su.DateOfBirth)
 	if err != nil {
 		return User{}, err
@@ -312,5 +251,99 @@ func (su ShortUser) toUserDB() (User, error) {
 		PhoneNumber: su.PhoneNumber,
 		Email:       su.Email,
 		ImageUrl:    su.ImageUrl,
+		Role:        userRole{role},
 	}, nil
+}
+
+type RegistrantionUser struct {
+	UserSimplified
+	Password string `json:"password"`
+}
+
+func (ru RegistrantionUser) ToNewUser(role auth.Role) (User, rfc7807.InvalidParams) {
+	user, _ := ru.UserSimplified.ToUser(role)
+	user.Password = ru.Password
+	user.ID = uuid.New()
+	params := user.validate()
+
+	return user, params
+}
+
+func NewForGoogleOAUTH(email, name, surname string) User {
+	return User{
+		ID:          uuid.New(),
+		Email:       email,
+		FirstName:   name,
+		LastName:    surname,
+		DateOfBirth: dateOfBirth{time.Now().AddDate(-25, 0, 0)},
+		ImageUrl:    "https://example.com/default-guest-avatar.png",
+		Role:        userRole{auth.Customer},
+	}
+}
+
+type UsersPaginationStr struct {
+	PageNumber string
+	PageSize   string
+	OrderBy    string
+	OrderWay   string
+	Roles      string
+}
+
+type UserPagination struct {
+	PageNumber int
+	PageSize   int
+	Orderby    string
+	Roles      []string
+}
+
+func (upstr UsersPaginationStr) Parse() (UserPagination, error) {
+	var err error
+	var params rfc7807.InvalidParams
+	stringToInt := func(s string, name string, destination *int) {
+		*destination, err = strconv.Atoi(s)
+		if err != nil {
+			if errors.Is(err, strconv.ErrSyntax) {
+				params.SetInvalidParam(name, err.Error())
+			} else {
+
+			}
+		} else if *destination < 1 {
+			params.SetInvalidParam(name, "Must be equal or greater than 1.")
+		}
+	}
+
+	var userPagination UserPagination
+
+	stringToInt("pageNumber", upstr.PageNumber, &userPagination.PageNumber)
+	stringToInt("pageSize", upstr.PageSize, &userPagination.PageSize)
+
+	switch upstr.OrderBy {
+	case "name", "role", "age", "registrationDate":
+		userPagination.Orderby = upstr.OrderBy
+	default:
+		params.SetInvalidParam("orderBy", "non-existing orderBy value.")
+	}
+
+	switch upstr.OrderWay {
+	case "DESC", "ASC":
+		upstr.OrderBy += " " + upstr.OrderWay
+	default:
+		params.SetInvalidParam("orderWay", "non-existing orderWay value.")
+	}
+
+	roles := strings.Split(upstr.Roles, "+")
+	for _, role := range roles {
+		switch role {
+		case "Admin", "Customer", "Support", "Driver":
+			userPagination.Roles = append(userPagination.Roles, role)
+		default:
+			params.SetInvalidParam("roles", "non-existing role value.")
+		}
+
+	}
+
+	if params != nil {
+		return userPagination, rfc7807.BadRequest("invalid-users-pagination-data", "Invalid Users Pagination Data Error", "Provided pagination data is not valid.", params...)
+	}
+	return userPagination, nil
 }

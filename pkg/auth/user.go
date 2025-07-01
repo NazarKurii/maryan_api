@@ -24,7 +24,7 @@ const (
 	Customer        CustomerRole        = "Customer"
 	Admin           AdminRole           = "Admin"
 	Driver          DriverRole          = "Driver"
-	SupportEmployee SupportEmployeeRole = "Support Employee"
+	SupportEmployee SupportEmployeeRole = "Support"
 )
 
 func (r CustomerRole) Name() string                 { return string(r) }

@@ -1,8 +1,10 @@
 package ginutil
 
 import (
+	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,4 +30,8 @@ func ParseStringKey(c *gin.Context, key string) (string, error) {
 		return "", fmt.Errorf(`"%s" query param could not be found in the request`, key)
 	}
 	return value, nil
+}
+
+func ContextWithTimeout(ctx *gin.Context, duration time.Duration) (context.Context, func()) {
+	return context.WithTimeout(ctx.Request.Context(), duration)
 }

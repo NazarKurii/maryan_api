@@ -1,4 +1,4 @@
-package trip
+package entity
 
 import (
 	rfc7807 "maryan_api/pkg/problem"
