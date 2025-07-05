@@ -1,4 +1,4 @@
-package entity
+package valueobject
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type EmailVerificationSession struct {
@@ -48,4 +49,11 @@ func NewEmailVerificationSession(code, email string) EmailVerificationSession {
 
 func NewNumberVerificationSession(code, number string) NumberVerificationSession {
 	return NumberVerificationSession{uuid.New(), code, number, time.Now().Add(time.Minute * 10)}
+}
+
+func MigrateVerifications(db *gorm.DB) {
+	db.AutoMigrate(
+		&NumberVerificationSession{},
+		&EmailVerificationSession{},
+	)
 }

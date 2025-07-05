@@ -13,14 +13,12 @@ import (
 )
 
 type UserService interface {
-	//----------Not authentificated------------------
-	Login(email, password string, ctx context.Context) (string, error)
-	LoginJWT(id uuid.UUID, email string, ctx context.Context) (string, error)
-	GetByID(id uuid.UUID, ctx context.Context) (entity.UserSimplified, error)
-	//------------Authentificated--------------------
+	//----------Not authenticated------------------
+	Login(ctx context.Context, email, password string) (string, error)
+	LoginJWT(ctx context.Context, id uuid.UUID, email string) (string, error)
+	GetByID(ctx context.Context, id uuid.UUID) (entity.UserSimplified, error)
+	//------------Authenticated--------------------
 
-	//Aditional functionality
-	//UserService() UserService
 	SecretKey() []byte
 	Role() auth.Role
 }
@@ -38,7 +36,7 @@ func (us *userServiceImpl) Role() auth.Role {
 	return us.role
 }
 
-func (us *userServiceImpl) Login(email, password string, ctx context.Context) (string, error) {
+func (us *userServiceImpl) Login(ctx context.Context, email, password string) (string, error) {
 	if !govalidator.IsEmail(email) {
 		return "", rfc7807.BadRequest(
 			"email-invalid",
@@ -47,7 +45,7 @@ func (us *userServiceImpl) Login(email, password string, ctx context.Context) (s
 		)
 	}
 
-	id, passwordHashed, err := us.repo.Login(email, ctx)
+	id, passwordHashed, err := us.repo.Login(ctx, email)
 	if err != nil {
 		return "", err
 	}
@@ -56,15 +54,14 @@ func (us *userServiceImpl) Login(email, password string, ctx context.Context) (s
 		return "", rfc7807.Unauthorized(
 			"invalid-password",
 			"Invalid Password Error",
-			"Invalid password for user assosiated with the provided email.",
+			"Invalid password for user associated with the provided email.",
 		)
 	}
 
 	return us.role.GenerateToken(email, id)
-
 }
 
-func (us *userServiceImpl) LoginJWT(id uuid.UUID, email string, ctx context.Context) (string, error) {
+func (us *userServiceImpl) LoginJWT(ctx context.Context, id uuid.UUID, email string) (string, error) {
 	if !govalidator.IsEmail(email) {
 		return "", rfc7807.BadRequest(
 			"email-invalid",
@@ -73,7 +70,7 @@ func (us *userServiceImpl) LoginJWT(id uuid.UUID, email string, ctx context.Cont
 		)
 	}
 
-	validID, exists, err := us.repo.UserExists(email, ctx)
+	validID, exists, err := us.repo.UserExists(ctx, email)
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +79,7 @@ func (us *userServiceImpl) LoginJWT(id uuid.UUID, email string, ctx context.Cont
 		return "", rfc7807.BadRequest(
 			"non-existing-user",
 			"Non-existing User Error",
-			"There is no user assosiated with the provided email.",
+			"There is no user associated with the provided email.",
 		)
 	}
 
@@ -99,8 +96,8 @@ func (us *userServiceImpl) LoginJWT(id uuid.UUID, email string, ctx context.Cont
 	return token, err
 }
 
-func (us *userServiceImpl) GetByID(id uuid.UUID, ctx context.Context) (entity.UserSimplified, error) {
-	user, err := us.repo.GetByID(id, ctx)
+func (us *userServiceImpl) GetByID(ctx context.Context, id uuid.UUID) (entity.UserSimplified, error) {
+	user, err := us.repo.GetByID(ctx, id)
 	if err != nil {
 		return entity.UserSimplified{}, err
 	}
@@ -108,6 +105,6 @@ func (us *userServiceImpl) GetByID(id uuid.UUID, ctx context.Context) (entity.Us
 	return user.ToSimplified(), nil
 }
 
-func newUserService(role auth.Role, repo repo.UserRepo) UserService {
+func NewUserService(role auth.Role, repo repo.UserRepo) UserService {
 	return &userServiceImpl{repo, role}
 }

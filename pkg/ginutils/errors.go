@@ -8,21 +8,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ServiceErrorAbort(c *gin.Context, err error) {
-	logger := getLogger(c)
+func ServiceErrorAbort(ctx *gin.Context, err error) {
+	logger := getLogger(ctx)
 	problem, ok := rfc7807.Is(err)
 	if !ok {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, rfc7807.Internal("Could not convert error into rfc7807 representaion", fmt.Sprintf("Error message: %s", err.Error())))
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, rfc7807.Internal("Could not convert error into rfc7807 representaion", fmt.Sprintf("Error message: %s", err.Error())))
 		logger.SetError(err, http.StatusInternalServerError)
 	} else {
-		c.AbortWithStatusJSON(problem.Status, problem)
+		ctx.AbortWithStatusJSON(problem.Status, problem)
 		logger.SetProblem(problem)
 	}
 
 }
 
-func HandlerProblemAbort(c *gin.Context, problem rfc7807.Problem) {
-	logger := getLogger(c)
-	c.AbortWithStatusJSON(problem.Status, problem)
+func HandlerProblemAbort(ctx *gin.Context, problem rfc7807.Problem) {
+	logger := getLogger(ctx)
+	ctx.AbortWithStatusJSON(problem.Status, problem)
 	logger.SetProblem(problem)
 }

@@ -3,6 +3,7 @@ package dataStore
 import (
 	"context"
 	"maryan_api/internal/entity"
+	objectvalue "maryan_api/internal/valueobject"
 	"maryan_api/pkg/dbutil"
 	rfc7807 "maryan_api/pkg/problem"
 
@@ -11,20 +12,20 @@ import (
 )
 
 // customerRepo embeds userRepo and defines additional Customer functionality.
-type CustomerDataStore interface {
-	UserDataStore
+type Customer interface {
+	User
 
-	Create(user *entity.User, ctx context.Context) error
-	Delete(id uuid.UUID, ctx context.Context) error
-	EmailExists(email string, ctx context.Context) (bool, error)
+	Create(ctx context.Context, user *entity.User) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	EmailExists(ctx context.Context, email string) (bool, error)
 
-	StartEmailVerification(session entity.EmailVerificationSession, ctx context.Context) (uuid.UUID, error)
-	EmailVerificationSession(sessionID uuid.UUID, ctx context.Context) (entity.EmailVerificationSession, error)
-	CompleteEmailVerification(sessionID uuid.UUID, ctx context.Context) error
+	StartEmailVerification(ctx context.Context, session objectvalue.EmailVerificationSession) (uuid.UUID, error)
+	EmailVerificationSession(ctx context.Context, sessionID uuid.UUID) (objectvalue.EmailVerificationSession, error)
+	CompleteEmailVerification(ctx context.Context, sessionID uuid.UUID) error
 
-	StartNumberVerification(session entity.NumberVerificationSession, ctx context.Context) (uuid.UUID, error)
-	NumberVerificationSession(sessionID uuid.UUID, ctx context.Context) (entity.NumberVerificationSession, error)
-	CompleteNumberVerification(sessionID uuid.UUID, ctx context.Context) error
+	StartNumberVerification(ctx context.Context, session objectvalue.NumberVerificationSession) (uuid.UUID, error)
+	NumberVerificationSession(ctx context.Context, sessionID uuid.UUID) (objectvalue.NumberVerificationSession, error)
+	CompleteNumberVerification(ctx context.Context, sessionID uuid.UUID) error
 }
 
 // MySQL customer repo implementation
@@ -32,71 +33,57 @@ type customerMySQL struct {
 	userMySQL
 }
 
-func (cr *customerMySQL) Create(u *entity.User, ctx context.Context) error {
-	return dbutil.PossibleCreateError(cr.db.WithContext(ctx).Create(u), "user-credentials-validation")
+func (cds *customerMySQL) Create(ctx context.Context, u *entity.User) error {
+	return dbutil.PossibleCreateError(cds.db.WithContext(ctx).Create(u), "user-credentials-validation")
 }
 
-func (cr *customerMySQL) Delete(id uuid.UUID, ctx context.Context) error {
+func (cds *customerMySQL) Delete(ctx context.Context, id uuid.UUID) error {
 	return dbutil.PossibleRawsAffectedError(
-		cr.db.WithContext(ctx).Delete(&entity.User{ID: id}),
+		cds.db.WithContext(ctx).Delete(&entity.User{ID: id}),
 		"non-existing-user",
 	)
 }
 
-func (cr *customerMySQL) EmailExists(email string, ctx context.Context) (bool, error) {
+func (cds *customerMySQL) EmailExists(ctx context.Context, email string) (bool, error) {
 	var exists bool
-	result := cr.db.WithContext(ctx).Raw("SELECT EXISTS(SELECT 1 FROM users WHERE email = ?) ", email).Scan(&exists)
+	result := cds.db.WithContext(ctx).Raw("SELECT EXISTS(SELECT 1 FROM users WHERE email = ?)", email).Scan(&exists)
 	if result.Error != nil {
 		return false, rfc7807.DB(result.Error.Error())
 	}
-
 	return exists, nil
 }
 
-func (cr *customerMySQL) UserExists(email string, ctx context.Context) (uuid.UUID, bool, error) {
-	var user entity.User
-	err := cr.db.WithContext(ctx).Select("id").Where("email = ?", email).Find(&user).Error
-	if err != nil {
-		return uuid.Nil, false, rfc7807.DB(err.Error())
-	}
-
-	return user.ID, user.ID != uuid.Nil, nil
+func (cds *customerMySQL) StartEmailVerification(ctx context.Context, session objectvalue.EmailVerificationSession) (uuid.UUID, error) {
+	return session.ID, dbutil.PossibleCreateError(cds.db.WithContext(ctx).Create(session), "invalid-email-verification-session-data")
 }
 
-func (cr *customerMySQL) StartEmailVerification(session entity.EmailVerificationSession, ctx context.Context) (uuid.UUID, error) {
-
-	return session.ID, dbutil.PossibleCreateError(cr.db.WithContext(ctx).Create(session), "invalid-email-verification-session-data")
+func (cds *customerMySQL) EmailVerificationSession(ctx context.Context, sessionID uuid.UUID) (objectvalue.EmailVerificationSession, error) {
+	var session = objectvalue.EmailVerificationSession{ID: sessionID}
+	return session, dbutil.PossibleFirstError(cds.db.WithContext(ctx).First(&session), "non-existing-email-verification-session")
 }
 
-func (cr *customerMySQL) EmailVerificationSession(sessionID uuid.UUID, ctx context.Context) (entity.EmailVerificationSession, error) {
-	var session = entity.EmailVerificationSession{ID: sessionID}
-	return session, dbutil.PossibleFirstError(cr.db.WithContext(ctx).First(&session), "non-existing-email-verification-session")
-}
-
-func (cr *customerMySQL) CompleteEmailVerification(sessionID uuid.UUID, ctx context.Context) error {
-	return dbutil.PossibleDeleteError(
-		cr.db.WithContext(ctx).Delete(&entity.EmailVerificationSession{ID: sessionID}),
+func (cds *customerMySQL) CompleteEmailVerification(ctx context.Context, sessionID uuid.UUID) error {
+	return dbutil.PossibleRawsAffectedError(
+		cds.db.WithContext(ctx).Delete(&objectvalue.EmailVerificationSession{ID: sessionID}),
 		"non-existing-email-verification-session")
-
 }
 
-func (cr *customerMySQL) StartNumberVerification(session entity.NumberVerificationSession, ctx context.Context) (uuid.UUID, error) {
-
-	return session.ID, dbutil.PossibleCreateError(cr.db.WithContext(ctx).Create(session), "invalid-number-verification-session-data")
+func (cds *customerMySQL) StartNumberVerification(ctx context.Context, session objectvalue.NumberVerificationSession) (uuid.UUID, error) {
+	return session.ID, dbutil.PossibleCreateError(cds.db.WithContext(ctx).Create(session), "invalid-number-verification-session-data")
 }
 
-func (cr *customerMySQL) NumberVerificationSession(sessionID uuid.UUID, ctx context.Context) (entity.NumberVerificationSession, error) {
-	var session = entity.NumberVerificationSession{ID: sessionID}
-	return session, dbutil.PossibleFirstError(cr.db.WithContext(ctx).First(&session), "non-existing-number-verification-session")
+func (cds *customerMySQL) NumberVerificationSession(ctx context.Context, sessionID uuid.UUID) (objectvalue.NumberVerificationSession, error) {
+	var session = objectvalue.NumberVerificationSession{ID: sessionID}
+	return session, dbutil.PossibleFirstError(cds.db.WithContext(ctx).First(&session), "non-existing-number-verification-session")
 }
 
-func (cr *customerMySQL) CompleteNumberVerification(sessionID uuid.UUID, ctx context.Context) error {
-	return dbutil.PossibleDeleteError(
-		cr.db.WithContext(ctx).Delete(&entity.NumberVerificationSession{ID: sessionID}),
+func (cds *customerMySQL) CompleteNumberVerification(ctx context.Context, sessionID uuid.UUID) error {
+	return dbutil.PossibleRawsAffectedError(
+		cds.db.WithContext(ctx).Delete(&objectvalue.NumberVerificationSession{ID: sessionID}),
 		"non-existing-number-verification-session")
 }
 
 // Declaration function
-func NewCustomerDataStore(db *gorm.DB) CustomerDataStore {
+func NewCustomer(db *gorm.DB) Customer {
 	return &customerMySQL{userMySQL{db}}
 }

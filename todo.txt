@@ -1,4 +1,57 @@
+
+customer:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5hemFyQGdtYWlsLmNvbSIsImV4cGlyZXMiOjE3NTIzMzUyMzgsInJvbGUiOiJDdXN0b21lciIsInVzZXJJRCI6ImNmYzJiZjE1LWMwMGYtNDhiOS1hN2EwLWUwYWI1ZWVjYWMyMSJ9.1y22tlLiGRKQj8iX8IsZA0D-ivo-UdU5sdTsKqov8r0
+
 {
-  "email": "user9@example.com",
-  "password": "hashed_password_9"
+  "email": "nazar@gmail.com",
+  "password": "Nazar3233"
 }
+
+
+admin:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5hemFyYWRtaW5AZ21haWwuY29tIiwiZXhwaXJlcyI6MTc1MTgxNzE3NSwicm9sZSI6IkFkbWluIiwidXNlcklEIjoiNTEwZTY0MWMtNTQyMS0xMWYwLThjMjQtZDBmZThhYjhmZGNiIn0.sH9tipijt2gC9F0KtBdIbXYOxr6S96O_XkNk4RALjo
+
+{
+   "email": "nazaradmin@gmail.com",
+  "password": "Nazar3233"
+}
+     
+
+     "users": [
+    {
+      "id": "510e641c-5421-11f0-8c24-d0fe8ab8fdcb",
+      "firstName": "First4",
+      "lastName": "Last4",
+      "dateOfBirth": "1990-01-05T00:00:00+01:00",
+      "phoneNumber": "+380500688763",
+      "email": "nazaradmin@gmail.com",
+      "password": "$2a$14$HaxK97SNYMI9b.JNMGP1QuHz2YsqS3KaU1vdwKG9j/JsxyhsRtelm",
+      "imageUrl": "https://example.com/image4.jpg",
+      "sex": "Female",
+      "role": "Admin",
+      "createdAt": "2025-07-05T17:52:33.176+02:00",
+      "updatedAt": "2025-07-05T17:52:33.176+02:00",
+      "deletedAt": {
+        "Time": "0001-01-01T00:00:00Z",
+        "Valid": false
+      }
+    },
+    {
+      "id": "cfc2bf15-c00f-48b9-a7a0-e0ab5eecac21",
+      "firstName": "First4",
+      "lastName": "Last4",
+      "dateOfBirth": "1990-01-05T00:00:00+01:00",
+      "phoneNumber": "+380500688763",
+      "email": "nazar@gmail.com",
+      "password": "$2a$14$9CobcO51z0TGi/ZNx8.iROM/yWHIUvQqLNvHEc5sag1ePGGRXGNOO",
+      "imageUrl": "http://localhost:8080/imgs/guest-female.png",
+      "sex": "Female",
+      "role": "Customer",
+      "createdAt": "2025-07-05T17:47:18.099+02:00",
+      "updatedAt": "2025-07-05T17:47:18.099+02:00",
+      "deletedAt": {
+        "Time": "0001-01-01T00:00:00Z",
+        "Valid": false
+      }
+    }
+  ]

@@ -18,13 +18,13 @@ type Role interface {
 type CustomerRole string
 type AdminRole string
 type DriverRole string
-type SupportEmployeeRole string
+type SupportRole string
 
 const (
-	Customer        CustomerRole        = "Customer"
-	Admin           AdminRole           = "Admin"
-	Driver          DriverRole          = "Driver"
-	SupportEmployee SupportEmployeeRole = "Support"
+	Customer CustomerRole = "Customer"
+	Admin    AdminRole    = "Admin"
+	Driver   DriverRole   = "Driver"
+	Support  SupportRole  = "Support"
 )
 
 func (r CustomerRole) Name() string                 { return string(r) }
@@ -48,10 +48,10 @@ func (r DriverRole) GenerateToken(email string, id uuid.UUID) (string, error) {
 	return generateToken(email, id, r)
 }
 
-func (r SupportEmployeeRole) Name() string                 { return string(r) }
-func (r SupportEmployeeRole) SecretKey() []byte            { return config.SupportEmployeeSecretKey() }
-func (r SupportEmployeeRole) TokenDuration() time.Duration { return 24 * time.Hour }
-func (r SupportEmployeeRole) GenerateToken(email string, id uuid.UUID) (string, error) {
+func (r SupportRole) Name() string                 { return string(r) }
+func (r SupportRole) SecretKey() []byte            { return config.SupportEmployeeSecretKey() }
+func (r SupportRole) TokenDuration() time.Duration { return 24 * time.Hour }
+func (r SupportRole) GenerateToken(email string, id uuid.UUID) (string, error) {
 	return generateToken(email, id, r)
 }
 
@@ -63,8 +63,8 @@ func DefineRole(role string) (Role, error) {
 		return Admin, nil
 	case Driver.Name():
 		return Driver, nil
-	case SupportEmployee.Name():
-		return SupportEmployee, nil
+	case Support.Name():
+		return Support, nil
 	default:
 		return nil, fmt.Errorf("unknown role: %s", role)
 	}

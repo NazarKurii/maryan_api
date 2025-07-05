@@ -1,4 +1,4 @@
-package transport
+package http
 
 import (
 	"maryan_api/internal/domain/user/service"
@@ -18,7 +18,7 @@ type userHandler struct {
 
 func mai() {}
 
-func (uh userHandler) login(ctx *gin.Context) {
+func (uh *userHandler) login(ctx *gin.Context) {
 	var credentials struct {
 		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
@@ -39,7 +39,7 @@ func (uh userHandler) login(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	token, err := uh.service.Login(credentials.Email, credentials.Password, ctxWithTimeout)
+	token, err := uh.service.Login(ctxWithTimeout, credentials.Email, credentials.Password)
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -60,14 +60,14 @@ func (uh userHandler) login(ctx *gin.Context) {
 	})
 }
 
-func (uh userHandler) loginJWT(ctx *gin.Context) {
+func (uh *userHandler) loginJWT(ctx *gin.Context) {
 	id := ctx.MustGet("userID").(uuid.UUID)
 	email := ctx.MustGet("email").(string)
 
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	token, err := uh.service.LoginJWT(id, email, ctxWithTimeout)
+	token, err := uh.service.LoginJWT(ctxWithTimeout, id, email)
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return

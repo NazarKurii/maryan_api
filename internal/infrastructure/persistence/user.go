@@ -9,46 +9,55 @@ import (
 	"gorm.io/gorm"
 )
 
-// userMySQL defines basic login methods and the getByID method, that available for all users.
-type UserDataStore interface {
-	//----------Basic User Manipulations ---------
-	GetByID(id uuid.UUID, ctx context.Context) (entity.User, error) //OK
-	Login(email string, ctx context.Context) (uuid.UUID, string, error)
-	UserExists(email string, ctx context.Context) (uuid.UUID, bool, error)
+// User defines basic user operations.
+type User interface {
+	GetByID(ctx context.Context, id uuid.UUID) (entity.User, error)
+	Login(ctx context.Context, email string) (uuid.UUID, string, error)
+	UserExists(ctx context.Context, email string) (uuid.UUID, bool, error)
+	UserExistsByID(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
-// MYSQL IMPLEMENTATION
+// MySQL implementation
 type userMySQL struct {
 	db *gorm.DB
 }
 
-func (ur *userMySQL) GetByID(id uuid.UUID, ctx context.Context) (entity.User, error) {
-	var user = entity.User{ID: id}
-
+func (uds *userMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.User, error) {
+	user := entity.User{ID: id}
 	return user, dbutil.PossibleFirstError(
-		ur.db.WithContext(ctx).First(&user),
+		uds.db.WithContext(ctx).First(&user),
 		"non-existing-user",
 	)
 }
 
-func (ur *userMySQL) Login(email string, ctx context.Context) (uuid.UUID, string, error) {
+func (uds *userMySQL) Login(ctx context.Context, email string) (uuid.UUID, string, error) {
 	var user entity.User
-
-	return user.ID, user.Password, dbutil.PossibleFirstError(
-		ur.db.WithContext(ctx).Select("id", "password").Where("email = ?", email).First(&user),
+	err := dbutil.PossibleFirstError(
+		uds.db.WithContext(ctx).Select("id", "password").Where("email = ?", email).First(&user),
 		"non-existing-user",
 	)
+	return user.ID, user.Password, err
 }
 
-func (ur *userMySQL) UserExists(email string, ctx context.Context) (uuid.UUID, bool, error) {
+func (uds *userMySQL) UserExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
 	var user entity.User
-
-	return user.ID, user.ID != uuid.Nil, dbutil.PossibleRawsAffectedError(
-		ur.db.WithContext(ctx).Select("id").Where("email = ?", email).First(&user),
+	err := dbutil.PossibleRawsAffectedError(
+		uds.db.WithContext(ctx).Select("id").Where("email = ?", email).First(&user),
 		"non-existing-user",
 	)
+	return user.ID, user.ID != uuid.Nil, err
 }
 
-func NewUserDataStore(db *gorm.DB) UserDataStore {
-	return &userMySQL{db}
+func (uds *userMySQL) UserExistsByID(ctx context.Context, id uuid.UUID) (bool, error) {
+	var exists bool
+	err := dbutil.PossibleRawsAffectedError(
+		uds.db.WithContext(ctx).Select("SELECT EXISTS(SELECT 1 FROM users WHERE id = ?)", id).Scan(exists),
+		"non-existing-user",
+	)
+	return exists, err
+}
+
+// Constructor
+func NewUser(db *gorm.DB) User {
+	return &userMySQL{db: db}
 }

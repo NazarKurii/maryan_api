@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"maryan_api/config"
 	"maryan_api/pkg/auth"
@@ -34,8 +33,8 @@ type User struct {
 	ImageUrl    string       `gorm:"type:varchar(255);not null" json:"imageUrl"`
 	Sex         userSex      `gorm:"type:enum('Female','Male');not null" json:"sex"`
 	Role        userRole     `gorm:"type:enum('Customer','Admin','Driver','Support');not null" json:"role"`
-	CreatedAt   time.Time    `gorm:"not null" json:"createdAt"`
-	UpdatedAt   time.Time    `gorm:"not null" json:"updatedAt"`
+	CreatedAt   time.Time    `gorm:"not null;default:CURRENT_TIMESTAMP" json:"createdAt"`
+	UpdatedAt   time.Time    `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updatedAt"`
 	DeletedAt   sql.NullTime `gorm:"index" json:"deletedAt"`
 }
 
@@ -149,6 +148,17 @@ func sexImage(sex string) (string, error) {
 
 }
 
+func (s *userSex) UnmarshalJSON(b []byte) error {
+	var sexStr string
+	if err := json.Unmarshal(b, &sexStr); err != nil {
+		return err
+	}
+
+	*s = userSex(sexStr)
+	return nil
+
+}
+
 // ************************************* //
 // USER HELPING METHODS FOR THE SERVICE //
 // ************************************* //
@@ -177,7 +187,7 @@ func (u *User) validate() rfc7807.InvalidParams {
 	}
 
 	if u.Sex != maleSex && u.Sex != femaleSex {
-		params.SetInvalidParam("sex", "Can only be 'Male' or 'Female'")
+		params.SetInvalidParam("sex", fmt.Sprintf("Can only be 'Male' or 'Female', got '%s'.", u.Sex))
 	}
 
 	if u.DateOfBirth.Before(time.Now().AddDate(-125, 0, 0)) {
@@ -222,7 +232,7 @@ type UserSimplified struct {
 	PhoneNumber string    `json:"phoneNumber"`
 	Email       string    `json:"email"`
 	ImageUrl    string    `json:"imageUrl"`
-	Sex         userSex   `json:"sex"`
+	Sex         string    `json:"sex"`
 }
 
 func (user User) ToSimplified() UserSimplified {
@@ -252,6 +262,7 @@ func (su UserSimplified) ToUser(role auth.Role) (User, error) {
 		Email:       su.Email,
 		ImageUrl:    su.ImageUrl,
 		Role:        userRole{role},
+		Sex:         userSex(su.Sex),
 	}, nil
 }
 
@@ -279,71 +290,4 @@ func NewForGoogleOAUTH(email, name, surname string) User {
 		ImageUrl:    "https://example.com/default-guest-avatar.png",
 		Role:        userRole{auth.Customer},
 	}
-}
-
-type UsersPaginationStr struct {
-	PageNumber string
-	PageSize   string
-	OrderBy    string
-	OrderWay   string
-	Roles      string
-}
-
-type UserPagination struct {
-	PageNumber int
-	PageSize   int
-	Orderby    string
-	Roles      []string
-}
-
-func (upstr UsersPaginationStr) Parse() (UserPagination, error) {
-	var err error
-	var params rfc7807.InvalidParams
-	stringToInt := func(s string, name string, destination *int) {
-		*destination, err = strconv.Atoi(s)
-		if err != nil {
-			if errors.Is(err, strconv.ErrSyntax) {
-				params.SetInvalidParam(name, err.Error())
-			} else {
-
-			}
-		} else if *destination < 1 {
-			params.SetInvalidParam(name, "Must be equal or greater than 1.")
-		}
-	}
-
-	var userPagination UserPagination
-
-	stringToInt("pageNumber", upstr.PageNumber, &userPagination.PageNumber)
-	stringToInt("pageSize", upstr.PageSize, &userPagination.PageSize)
-
-	switch upstr.OrderBy {
-	case "name", "role", "age", "registrationDate":
-		userPagination.Orderby = upstr.OrderBy
-	default:
-		params.SetInvalidParam("orderBy", "non-existing orderBy value.")
-	}
-
-	switch upstr.OrderWay {
-	case "DESC", "ASC":
-		upstr.OrderBy += " " + upstr.OrderWay
-	default:
-		params.SetInvalidParam("orderWay", "non-existing orderWay value.")
-	}
-
-	roles := strings.Split(upstr.Roles, "+")
-	for _, role := range roles {
-		switch role {
-		case "Admin", "Customer", "Support", "Driver":
-			userPagination.Roles = append(userPagination.Roles, role)
-		default:
-			params.SetInvalidParam("roles", "non-existing role value.")
-		}
-
-	}
-
-	if params != nil {
-		return userPagination, rfc7807.BadRequest("invalid-users-pagination-data", "Invalid Users Pagination Data Error", "Provided pagination data is not valid.", params...)
-	}
-	return userPagination, nil
 }

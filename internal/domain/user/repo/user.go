@@ -10,31 +10,30 @@ import (
 	"gorm.io/gorm"
 )
 
-// userRepo defines basic login methods and the getByID method, that available for all users.
+// UserRepo defines basic user methods with context as first param.
 type UserRepo interface {
-	//----------Basic User Manipulations ---------
-	GetByID(id uuid.UUID, ctx context.Context) (entity.User, error) //OK
-	Login(email string, ctx context.Context) (uuid.UUID, string, error)
-	UserExists(email string, ctx context.Context) (uuid.UUID, bool, error)
+	GetByID(ctx context.Context, id uuid.UUID) (entity.User, error)
+	Login(ctx context.Context, email string) (uuid.UUID, string, error)
+	UserExists(ctx context.Context, email string) (uuid.UUID, bool, error)
 }
 
-// MYSQL IMPLEMENTATION
+// MYSQL implementation
 type userRepo struct {
-	store dataStore.UserDataStore
+	store dataStore.User
 }
 
-func (ur *userRepo) GetByID(id uuid.UUID, ctx context.Context) (entity.User, error) {
-	return ur.store.GetByID(id, ctx)
+func (ur *userRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.User, error) {
+	return ur.store.GetByID(ctx, id)
 }
 
-func (ur *userRepo) Login(email string, ctx context.Context) (uuid.UUID, string, error) {
-	return ur.store.Login(email, ctx)
+func (ur *userRepo) Login(ctx context.Context, email string) (uuid.UUID, string, error) {
+	return ur.store.Login(ctx, email)
 }
 
-func (ur *userRepo) UserExists(email string, ctx context.Context) (uuid.UUID, bool, error) {
-	return ur.store.UserExists(email, ctx)
+func (ur *userRepo) UserExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
+	return ur.store.UserExists(ctx, email)
 }
 
-func newUserRepo(db *gorm.DB) UserRepo {
-	return &userRepo{dataStore.NewUserDataStore(db)}
+func NewUserRepo(db *gorm.DB) UserRepo {
+	return &userRepo{dataStore.NewUser(db)}
 }

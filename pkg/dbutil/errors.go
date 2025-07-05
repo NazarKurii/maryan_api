@@ -75,19 +75,3 @@ func PossibleCreateError(result *gorm.DB, errType string) error {
 	}
 	return nil
 }
-
-func PossibleDeleteError(result *gorm.DB, errType string) error {
-	if result.Error != nil {
-		return defineError(result.Error, errType)
-	}
-
-	if result.RowsAffected == 0 {
-		return rfc7807.BadRequest(
-			errType,
-			"Empty result set",
-			"No records were found for the provided query conditions.",
-		)
-	}
-
-	return nil
-}

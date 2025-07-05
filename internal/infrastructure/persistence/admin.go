@@ -2,45 +2,33 @@ package dataStore
 
 import (
 	"context"
+
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/dbutil"
-	rfc7807 "maryan_api/pkg/problem"
-	"math"
+	"maryan_api/pkg/pagination"
 
 	"gorm.io/gorm"
 )
 
 type AdminDataStore interface {
-	UserDataStore
-	Users(pageNumber, pageSize int, orderBy string, roles []string, ctx context.Context) ([]entity.User, int, error)
+	User
+	Users(ctx context.Context, cfg pagination.CfgCondition) ([]entity.User, int, error)
+	NewUser(ctx context.Context, user *entity.User) error
 }
 
 type adminMySQL struct {
 	userMySQL
 }
 
-func (ar *adminMySQL) Users(pageNumber, pageSize int, orderBy string, roles []string, ctx context.Context) ([]entity.User, int, error) {
-	pageNumber--
-	var users []entity.User
-
-	err := dbutil.PossibleRawsAffectedError(ar.db.WithContext(ctx).Limit(pageSize).Offset(pageNumber*pageSize).Find(&users), "non-existing-page")
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var totalUsers int64
-
-	err = ar.db.Model(&entity.User{}).Count(&totalUsers).Error
-	if err != nil || totalUsers == 0 {
-		return nil, 0, rfc7807.DB("Could not count users.")
-	}
-
-	return users, int(math.Ceil(float64(totalUsers) / float64(pageSize))), nil
-
+func (ads *adminMySQL) Users(ctx context.Context, cfg pagination.CfgCondition) ([]entity.User, int, error) {
+	return dbutil.PaginationWithCondition[entity.User](ctx, ads.db, cfg)
 }
 
-//Declaration function
+func (ads *adminMySQL) NewUser(ctx context.Context, user *entity.User) error {
+	return dbutil.PossibleCreateError(ads.db.WithContext(ctx).Create(user), "user-credentials-validation")
+}
 
-func NewAdminDataStore(db *gorm.DB) AdminDataStore {
+// Declaration function
+func NewAdmin(db *gorm.DB) AdminDataStore {
 	return &adminMySQL{userMySQL{db}}
 }

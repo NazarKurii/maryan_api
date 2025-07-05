@@ -1,4 +1,4 @@
-package transport
+package http
 
 import (
 	"maryan_api/config"
@@ -19,7 +19,7 @@ type customerHandler struct {
 	service service.CustomerService
 }
 
-func (ch customerHandler) verifyEmail(ctx *gin.Context) {
+func (ch *customerHandler) verifyEmail(ctx *gin.Context) {
 	var email struct {
 		Val string `json:"email"`
 	}
@@ -32,7 +32,7 @@ func (ch customerHandler) verifyEmail(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	token, exists, err := ch.service.VerifyEmail(email.Val, ctxWithTimeout)
+	token, exists, err := ch.service.VerifyEmail(ctxWithTimeout, email.Val)
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -62,7 +62,7 @@ func (ch customerHandler) verifyEmail(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, resp)
 }
 
-func (ch customerHandler) verifyEmailCode(ctx *gin.Context) {
+func (ch *customerHandler) verifyEmailCode(ctx *gin.Context) {
 	var code struct {
 		Val string `json:"code"`
 	}
@@ -75,7 +75,7 @@ func (ch customerHandler) verifyEmailCode(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	token, err := ch.service.VerifyEmailCode(code.Val, ctx.Param("token"), ctxWithTimeout)
+	token, err := ch.service.VerifyEmailCode(ctxWithTimeout, code.Val, ctx.Param("token"))
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -97,9 +97,9 @@ func (ch customerHandler) verifyEmailCode(ctx *gin.Context) {
 
 }
 
-func (ch customerHandler) verifyNumber(ctx *gin.Context) {
+func (ch *customerHandler) verifyNumber(ctx *gin.Context) {
 	var number struct {
-		Val string `json:"number"`
+		Val string `json:"phoneNumber"`
 	}
 
 	if err := ctx.ShouldBindJSON(&number); err != nil {
@@ -110,7 +110,7 @@ func (ch customerHandler) verifyNumber(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	token, err := ch.service.VerifyNumber(number.Val, ctxWithTimeout)
+	token, err := ch.service.VerifyNumber(ctxWithTimeout, number.Val)
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -127,7 +127,7 @@ func (ch customerHandler) verifyNumber(ctx *gin.Context) {
 	)
 }
 
-func (ch customerHandler) verifyNumberCode(ctx *gin.Context) {
+func (ch *customerHandler) verifyNumberCode(ctx *gin.Context) {
 	var code struct {
 		Val string `json:"code"`
 	}
@@ -140,7 +140,7 @@ func (ch customerHandler) verifyNumberCode(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	token, err := ch.service.VerifyNumberCode(code.Val, ctx.Param("token"), ctxWithTimeout)
+	token, err := ch.service.VerifyNumberCode(ctxWithTimeout, code.Val, ctx.Param("token"))
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -162,7 +162,7 @@ func (ch customerHandler) verifyNumberCode(ctx *gin.Context) {
 
 }
 
-func (ch customerHandler) googleOAUTH(ctx *gin.Context) {
+func (ch *customerHandler) googleOAUTH(ctx *gin.Context) {
 	var request struct {
 		Code string `json:"code"`
 	}
@@ -175,7 +175,7 @@ func (ch customerHandler) googleOAUTH(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	token, isNew, err := ch.service.GoogleOAUTH(request.Code, ctxWithTimeout)
+	token, isNew, err := ch.service.GoogleOAUTH(ctxWithTimeout, request.Code)
 
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
@@ -196,7 +196,7 @@ func (ch customerHandler) googleOAUTH(ctx *gin.Context) {
 	})
 }
 
-func (ch customerHandler) register(ctx *gin.Context) {
+func (ch *customerHandler) register(ctx *gin.Context) {
 	var user entity.RegistrantionUser
 
 	if err := ctx.ShouldBindJSON(&user); err != nil {
@@ -225,7 +225,7 @@ func (ch customerHandler) register(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	token, err := ch.service.Register(user, image, headers.EmailToken, headers.NumberToken, ctxWithTimeout)
+	token, err := ch.service.Register(ctxWithTimeout, user, image, headers.EmailToken, headers.NumberToken)
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -244,11 +244,11 @@ func (ch customerHandler) register(ctx *gin.Context) {
 	})
 }
 
-func (ch customerHandler) delete(ctx *gin.Context) {
+func (ch *customerHandler) delete(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	err := ch.service.Delete(ctx.MustGet("userID").(uuid.UUID), ctxWithTimeout)
+	err := ch.service.Delete(ctxWithTimeout, ctx.MustGet("userID").(uuid.UUID))
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -264,11 +264,11 @@ func (ch customerHandler) delete(ctx *gin.Context) {
 	})
 
 }
-func (uh customerHandler) get(ctx *gin.Context) {
+func (uh *customerHandler) get(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	user, err := uh.service.GetByID(ctx.MustGet("userID").(uuid.UUID), ctxWithTimeout)
+	user, err := uh.service.GetByID(ctxWithTimeout, ctx.MustGet("userID").(uuid.UUID))
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return

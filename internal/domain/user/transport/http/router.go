@@ -1,8 +1,9 @@
-package transport
+package http
 
 import (
 	"maryan_api/internal/domain/user/repo"
 	"maryan_api/internal/domain/user/service"
+	"maryan_api/pkg/auth"
 	ginutil "maryan_api/pkg/ginutils"
 	"maryan_api/pkg/hypermedia"
 	"net/http"
@@ -17,6 +18,10 @@ type Admin struct {
 
 type Customer struct {
 	customerHandler customerHandler
+}
+
+type Driver struct {
+	userhandler userHandler
 }
 
 func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
@@ -46,9 +51,18 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 	adminRouter := s.Group("/admin")
 
 	adminRouter.POST("/login", admin.adminHandler.login)
-	authAdminRouter.GET("/users/:page/:size/:role/:order-by/:order-way", admin.adminHandler.users)
 	adminRouter.POST("/hash-password", admin.adminHandler.hashPassword)
+	authAdminRouter.GET("/users/:page/:size/:role/:order_by/:order_way", admin.adminHandler.users)
+	authAdminRouter.POST("/new-driver", admin.adminHandler.NewUser(auth.Driver))
+	authAdminRouter.POST("/new-support", admin.adminHandler.NewUser(auth.Support))
+	authAdminRouter.POST("/new-admin", admin.adminHandler.NewUser(auth.Admin))
 
+	//ADMIN ROUTES
+	driver := Driver{newUserHandler(service.NewUserService(auth.Driver, repo.NewUserRepo(db)))}
+	// authDriverRouter := ginutil.CreateAuthRouter("/driver", driver.userhandler.service.SecretKey(), s)
+	driverRouter := s.Group("/driver")
+
+	driverRouter.POST("/login", driver.userhandler.login)
 }
 
 var (

@@ -3,13 +3,12 @@ package entity
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	rfc7807 "maryan_api/pkg/problem"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Bus struct {
@@ -127,56 +126,10 @@ func (b *Bus) Prepare() rfc7807.InvalidParams {
 	return params
 }
 
-type BusPaginationStr struct {
-	Page     string
-	Size     string
-	OrderBy  string
-	OrderWay string
-}
-
-type BusPagination struct {
-	Page  int
-	Size  int
-	Order string
-}
-
-func (bpstr BusPaginationStr) Parse() (BusPagination, error) {
-	var params rfc7807.InvalidParams
-	var err error
-	stringToInt := func(s string, name string, destination *int) {
-		*destination, err = strconv.Atoi(s)
-		if err != nil {
-			if errors.Is(err, strconv.ErrSyntax) {
-				params.SetInvalidParam(name, err.Error())
-			} else {
-
-			}
-		} else if *destination < 1 {
-			params.SetInvalidParam(name, "Must be equal or greater than 1.")
-		}
-	}
-
-	var cfg BusPagination
-
-	stringToInt(bpstr.Page, "pageNumber", &cfg.Page)
-	stringToInt(bpstr.Size, "pageSize", &cfg.Size)
-
-	switch bpstr.OrderBy {
-	case "name", "date", "year", "manufaturer":
-		cfg.Order += bpstr.OrderBy
-	default:
-		params.SetInvalidParam("orderBy", "non-existing orderBy param.")
-	}
-
-	switch bpstr.OrderWay {
-	case "DESC", "ASC":
-		cfg.Order += "" + bpstr.OrderWay
-	default:
-		params.SetInvalidParam("orderWay", "non-existing orderWay param.")
-	}
-
-	if params != nil {
-		return BusPagination{}, rfc7807.BadRequest("invalid-bus-pagination-data", "Invalid Bus Pagination Data Error", "Provided data is invald.", params...)
-	}
-	return cfg, nil
+func MigrateBus(db *gorm.DB) {
+	db.AutoMigrate(
+		&Bus{},
+		&Row{},
+		&Seat{},
+	)
 }
