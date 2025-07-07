@@ -4,7 +4,8 @@ import (
 	"context"
 	"maryan_api/internal/entity"
 	dataStore "maryan_api/internal/infrastructure/persistence"
-	"maryan_api/pkg/pagination"
+	"maryan_api/pkg/dbutil"
+	"maryan_api/pkg/hypermedia"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -14,7 +15,7 @@ type Bus interface {
 	RegistrationNumberExists(ctx context.Context, registrationNumber string) (bool, error)
 	Create(ctx context.Context, bus *entity.Bus) error
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, error)
-	GetBuses(ctx context.Context, cfg pagination.Cfg) ([]entity.Bus, int, error)
+	GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, hypermedia.Links, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	IsActive(ctx context.Context, id uuid.UUID) (bool, error)
 	MakeActive(ctx context.Context, id uuid.UUID) error
@@ -33,8 +34,8 @@ func (b *busRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, error)
 	return b.store.GetByID(ctx, id)
 }
 
-func (b *busRepo) GetBuses(ctx context.Context, cfg pagination.Cfg) ([]entity.Bus, int, error) {
-	return b.store.GetBuses(ctx, cfg)
+func (b *busRepo) GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, hypermedia.Links, error) {
+	return b.store.GetBuses(ctx, p)
 }
 
 func (b *busRepo) Delete(ctx context.Context, id uuid.UUID) error {

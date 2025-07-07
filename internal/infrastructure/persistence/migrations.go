@@ -9,12 +9,20 @@ import (
 )
 
 func Migrate(db *gorm.DB) error {
-	entity.MigrateUser(db)
-	entity.MigrateBus(db)
-	entity.MigratePassenger(db)
+	errCheck := func(err error) {
+		if err != nil {
+			panic(err)
+		}
+	}
 
-	valueobject.MigrateVerifications(db)
+	errCheck(entity.MigrateUser(db))
+	errCheck(entity.MigrateBus(db))
+	errCheck(entity.MigratePassenger(db))
+	errCheck(entity.MigrateAdress(db))
+	errCheck(entity.MigrateTrip(db))
 
-	log.Migrate(db)
+	errCheck(valueobject.MigrateVerifications(db))
+
+	errCheck(log.Migrate(db))
 	return nil
 }

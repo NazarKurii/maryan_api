@@ -4,9 +4,10 @@ import (
 	"maryan_api/internal/domain/user/service"
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/auth"
+	"maryan_api/pkg/dbutil"
 	ginutil "maryan_api/pkg/ginutils"
 	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/pagination"
+
 	rfc7807 "maryan_api/pkg/problem"
 	"maryan_api/pkg/security"
 	"net/http"
@@ -24,11 +25,13 @@ func (ah *adminHandler) users(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	users, urls, err := ah.service.Users(ctxWithTimeout, pagination.CfgStr{
+	users, urls, err := ah.service.Users(ctxWithTimeout, dbutil.PaginationStr{
+		"admin/users",
 		ctx.Param("page"),
 		ctx.Param("size"),
 		ctx.Param("order_by"),
-		ctx.Param("order_way")},
+		ctx.Param("order_way"),
+	},
 		ctx.Param("role"),
 	)
 	if err != nil {

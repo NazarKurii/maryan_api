@@ -4,8 +4,9 @@ import (
 	"context"
 	"maryan_api/internal/domain/adress/repo"
 	"maryan_api/internal/entity"
+	"maryan_api/pkg/dbutil"
 	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/pagination"
+
 	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 
@@ -17,7 +18,7 @@ type Adress interface {
 	Update(ctx context.Context, adress entity.Adress) (uuid.UUID, error)
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (entity.Adress, error)
-	GetAdresses(ctx context.Context, cfgStr pagination.CfgStr, userID uuid.UUID) ([]entity.Adress, hypermedia.Links, error)
+	GetAdresses(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.Adress, hypermedia.Links, error)
 }
 
 type adressServiceImpl struct {
@@ -106,18 +107,13 @@ func (a *adressServiceImpl) GetByID(ctx context.Context, idStr string) (entity.A
 	return a.repo.GetByID(ctx, id)
 }
 
-func (a *adressServiceImpl) GetAdresses(ctx context.Context, cfgStr pagination.CfgStr, userID uuid.UUID) ([]entity.Adress, hypermedia.Links, error) {
-	cfg, err := cfgStr.ParseWithCondition(pagination.Condition{"user_id IN ?", []any{userID}}, "city", "country", "street", "post_code")
+func (a *adressServiceImpl) GetAdresses(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.Adress, hypermedia.Links, error) {
+	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"user_id IN ?", []any{userID}}, "city", "country", "street", "post_code")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	adresses, total, err := a.repo.GetAdresses(ctx, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return adresses, pagination.Links(total, cfg.Size, "/customer/adresses"), nil
+	return a.repo.GetAdresses(ctx, pagination)
 }
 
 func NewAdressService(repo repo.Adress, client *http.Client) Adress {

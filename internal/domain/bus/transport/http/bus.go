@@ -6,9 +6,10 @@ import (
 
 	"maryan_api/internal/domain/bus/service"
 	"maryan_api/internal/entity"
+	"maryan_api/pkg/dbutil"
 	ginutil "maryan_api/pkg/ginutils"
 	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/pagination"
+
 	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 	"time"
@@ -105,7 +106,8 @@ func (b *busHandler) getBuses(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	buses, urls, err := b.service.GetBuses(ctxWithTimeout, pagination.CfgStr{
+	buses, urls, err := b.service.GetBuses(ctxWithTimeout, dbutil.PaginationStr{
+		"admin/buses",
 		ctx.Param("page"),
 		ctx.Param("size"),
 		ctx.Param("order_by"),

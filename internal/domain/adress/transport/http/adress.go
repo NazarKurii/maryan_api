@@ -5,9 +5,10 @@ import (
 	"maryan_api/config"
 	"maryan_api/internal/domain/adress/service"
 	"maryan_api/internal/entity"
+	"maryan_api/pkg/dbutil"
 	ginutil "maryan_api/pkg/ginutils"
 	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/pagination"
+
 	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 	"time"
@@ -86,7 +87,8 @@ func (a *adressHandler) GetAdress(ctx *gin.Context) {
 func (a *adressHandler) GetAdresses(ctx *gin.Context) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request.Context(), time.Second*10)
 	defer cancel()
-	adresses, links, err := a.service.GetAdresses(ctxWithTimeout, pagination.CfgStr{
+	adresses, links, err := a.service.GetAdresses(ctxWithTimeout, dbutil.PaginationStr{
+		"/customer/adresses",
 		ctx.Param("page"),
 		ctx.Param("size"),
 		ctx.Param("order_by"),

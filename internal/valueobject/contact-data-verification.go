@@ -51,8 +51,8 @@ func NewNumberVerificationSession(code, number string) NumberVerificationSession
 	return NumberVerificationSession{uuid.New(), code, number, time.Now().Add(time.Minute * 10)}
 }
 
-func MigrateVerifications(db *gorm.DB) {
-	db.AutoMigrate(
+func MigrateVerifications(db *gorm.DB) error {
+	return db.AutoMigrate(
 		&NumberVerificationSession{},
 		&EmailVerificationSession{},
 	)

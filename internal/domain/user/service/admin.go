@@ -6,9 +6,10 @@ import (
 	"maryan_api/internal/domain/user/repo"
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/auth"
+	"maryan_api/pkg/dbutil"
 	"maryan_api/pkg/hypermedia"
 	"maryan_api/pkg/images"
-	"maryan_api/pkg/pagination"
+
 	rfc7807 "maryan_api/pkg/problem"
 	"mime/multipart"
 	"net/http"
@@ -19,7 +20,7 @@ import (
 
 type AdminService interface {
 	UserService
-	Users(ctx context.Context, cfgStr pagination.CfgStr, rolesStr string) ([]entity.User, hypermedia.Links, error)
+	Users(ctx context.Context, paginationStr dbutil.PaginationStr, rolesStr string) ([]entity.User, hypermedia.Links, error)
 	NewUser(ctx context.Context, ru entity.RegistrantionUser, image *multipart.FileHeader, role auth.Role) (string, error)
 }
 
@@ -29,7 +30,7 @@ type adminServiceImpl struct {
 	client *http.Client
 }
 
-func (as adminServiceImpl) Users(ctx context.Context, cfgStr pagination.CfgStr, rolesStr string) ([]entity.User, hypermedia.Links, error) {
+func (as adminServiceImpl) Users(ctx context.Context, paginationStr dbutil.PaginationStr, rolesStr string) ([]entity.User, hypermedia.Links, error) {
 	roles := strings.Split(rolesStr, "+")
 	length := len(roles)
 	var rolesAny = make([]any, length)
@@ -37,17 +38,12 @@ func (as adminServiceImpl) Users(ctx context.Context, cfgStr pagination.CfgStr, 
 		rolesAny[i] = roles[i]
 	}
 
-	cfg, err := cfgStr.ParseWithCondition(pagination.Condition{"role IN ?", rolesAny})
+	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"role IN ?", []any{rolesAny}})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	users, pages, err := as.repo.Users(ctx, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return users, pagination.Links(pages, cfg.Size, "/admin/users"), nil
+	return as.repo.Users(ctx, pagination)
 }
 
 func (as *adminServiceImpl) NewUser(ctx context.Context, ru entity.RegistrantionUser, image *multipart.FileHeader, role auth.Role) (string, error) {

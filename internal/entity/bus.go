@@ -19,28 +19,38 @@ type Bus struct {
 	RegistrationNumber string       `gorm:"type:varchar(8); not null; unique" json:"registrantionNumber"`
 	Year               int          `gorm:"type:smallint; not null" json:"year"`
 	GpsTrackerID       string       `gorm:"type:varchar(255); not null" json:"gpsTrackerID"`
-	Rows               []Row        `gorm:"foreignKey:BusID" json:"rows"`
+	Seats              []Seat       `gorm:"foreignKey:BusID" json:"rows"`
+	Structure          []Row        `gorm:"not null"`
 	CreatedAt          time.Time    `gorm:"not null" json:"createdAt"`
 	UpdatedAt          time.Time    `gorm:"not null" json:"updatedAt"`
 	DeletedAt          sql.NullTime `gorm:"index" json:"deletedAt"`
 }
 
-type Row struct {
+type Seat struct {
 	ID     uuid.UUID `gorm:"type:uuid;primaryKey;" json:"id"`
-	BusID  uuid.UUID `gorm:"type:uuid;not null" json:"busID"`
-	Number uint8     `gorm:"not null" json:"number"`
-	Seats  []Seat    `json:"seats"`
+	BusID  uuid.UUID `gorm:"type:uuid"`
+	Number int       `gorm:"type:tinyint;not null" json:"number"`
+	Type   seatType  `gorm:"type:enum('Driver','Window', 'Single', 'Single-Window');not null" json:"type"`
 }
 
-type Seat struct {
-	ID           uuid.UUID `gorm:"type:uuid;primaryKey;" json:"id"`
-	RowID        uuid.UUID `gorm:"type:uuid;not null" json:"rowID"`
-	Number       uint8     `gorm:"not null" json:"number"`
-	Separated    bool      `gorm:"not null" json:"separated"`
-	NextToDriver bool      `gorm:"not null" json:"nextToDriver"`
-	Space        bool      `gorm:"not null" json:"space"`
-	RowPosition  int       `gorm:"type:tinyint;not null" json:"rowPosition"`
-	Window       bool      `gorm:"not null" json:"window"`
+type seatType string
+
+const (
+	SingleSeatType       = "Single"
+	SingleWindowSeatType = "Single-Window"
+	WindowSeatType       = "Window"
+	DriverSeatType       = "Driver"
+)
+
+type Row struct {
+	BusID     uuid.UUID      `gorm:"type:uuid"`
+	Positions []SeatPosition `gorm:"not null"`
+}
+
+type SeatPosition struct {
+	Number  int  `gorm:"not null"`
+	Empty   bool `gorm:"not null"`
+	Postion int  `gorm:"not null"`
 }
 
 type BusImage struct {
@@ -87,7 +97,7 @@ func (b *Bus) Prepare() rfc7807.InvalidParams {
 		params.SetInvalidParam("registrationNumber", "Invalid bus registration number.")
 	}
 
-	if len(b.Rows) == 0 {
+	if len(b.Seats) == 0 {
 		params.SetInvalidParam("seats", "Invalid bus seats number, must be greater than 0.")
 	}
 
@@ -96,40 +106,68 @@ func (b *Bus) Prepare() rfc7807.InvalidParams {
 	}
 
 	b.ID = uuid.New()
+	var seatNumbers = map[int]int{}
 
-	for i, row := range b.Rows {
-		if len(row.Seats) == 0 {
-			params.SetInvalidParam(fmt.Sprintf("row (index:%d)", i), "Empty row.")
+	for i, seat := range b.Seats {
+		var correctSeat bool = true
+
+		if seat.Number < 1 {
+			params.SetInvalidParam(fmt.Sprintf("seat (index:%d)", i), "Invalid seat number.")
+			correctSeat = false
+		}
+
+		if seatNumbers[seat.Number] == 1 {
+			params.SetInvalidParam(fmt.Sprintf("seat (index:%d)", i), "Invalid seat number (Repeated).")
+			correctSeat = false
+		} else {
+			seatNumbers[seat.Number]++
+		}
+
+		switch seat.Type {
+		case DriverSeatType, WindowSeatType, SingleSeatType, SingleWindowSeatType:
+			if correctSeat {
+				b.Seats[i].BusID = b.ID
+				b.Seats[i].ID = uuid.New()
+			}
+		default:
+			params.SetInvalidParam(fmt.Sprintf("seat (index:%d)", i), "Invalid seat type.")
 			continue
 		}
-		b.Rows[i].ID = uuid.New()
-		b.Rows[i].BusID = b.ID
+	}
 
-		for j, seat := range row.Seats {
-
-			if seat.Number < 1 && !seat.Space {
-				params.SetInvalidParam(fmt.Sprintf("Row(index:%d) seat (index:%d)", j, i), "Invalid seat number.")
+	for i, row := range b.Structure {
+		var correctRow bool = true
+		for j, seat := range row.Positions {
+			switch {
+			case seat.Number == 0 && !seat.Empty:
+				params.SetInvalidParam(fmt.Sprintf("Structure row(index:%d) seatPosition(index:%d)", i, j), "Seat is not empty, but seat number is 0")
+				correctRow = false
+			case seat.Number != 0 && seat.Empty:
+				params.SetInvalidParam(fmt.Sprintf("Structure row(index:%d) seatPosition(index:%d)", i, j), "Seat is  empty, but seat number is not 0")
+				correctRow = false
+			default:
+				if seatNumbers[seat.Number] == 0 {
+					params.SetInvalidParam(fmt.Sprintf("Structure row(index:%d) seatPosition(index:%d)", i, j), "Seat number is not unique")
+					correctRow = false
+				} else {
+					seatNumbers[seat.Number]--
+				}
 			}
-			if seat.Number > 0 && seat.Space {
-				params.SetInvalidParam(fmt.Sprintf("Row(index:%d) seat (index:%d)", j, i), "Invalid seat number. Must be 0 if the seat is 'space'")
-			}
-
-			if seat.RowPosition < 1 {
-				params.SetInvalidParam(fmt.Sprintf("Row(index:%d) seat (index:%d)", j, i), "Invalid  seat row position.")
-			}
-			b.Rows[i].Seats[j].ID = uuid.New()
-			b.Rows[i].Seats[j].RowID = b.Rows[i].ID
 		}
-
+		if correctRow {
+			b.Structure[i].BusID = b.ID
+		}
 	}
 
 	return params
 }
 
-func MigrateBus(db *gorm.DB) {
-	db.AutoMigrate(
+func MigrateBus(db *gorm.DB) error {
+	return db.AutoMigrate(
 		&Bus{},
 		&Row{},
 		&Seat{},
+		&Row{},
+		&SeatPosition{},
 	)
 }

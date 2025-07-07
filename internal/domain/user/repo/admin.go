@@ -4,14 +4,15 @@ import (
 	"context"
 	"maryan_api/internal/entity"
 	dataStore "maryan_api/internal/infrastructure/persistence"
-	"maryan_api/pkg/pagination"
+	"maryan_api/pkg/dbutil"
+	"maryan_api/pkg/hypermedia"
 
 	"gorm.io/gorm"
 )
 
 type AdminRepo interface {
 	UserRepo
-	Users(ctx context.Context, cfg pagination.CfgCondition) ([]entity.User, int, error)
+	Users(ctx context.Context, pagination dbutil.CondtionPagination) ([]entity.User, hypermedia.Links, error)
 	NewUser(ctx context.Context, user *entity.User) error
 }
 
@@ -20,8 +21,8 @@ type adminRepo struct {
 	store dataStore.AdminDataStore
 }
 
-func (ar *adminRepo) Users(ctx context.Context, cfg pagination.CfgCondition) ([]entity.User, int, error) {
-	return ar.store.Users(ctx, cfg)
+func (ar *adminRepo) Users(ctx context.Context, pagination dbutil.CondtionPagination) ([]entity.User, hypermedia.Links, error) {
+	return ar.store.Users(ctx, pagination)
 }
 
 func (ar *adminRepo) NewUser(ctx context.Context, user *entity.User) error {

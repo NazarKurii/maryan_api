@@ -4,7 +4,7 @@ import (
 	"context"
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/pagination"
+	"maryan_api/pkg/hypermedia"
 	rfc7807 "maryan_api/pkg/problem"
 
 	"github.com/google/uuid"
@@ -18,7 +18,7 @@ type Passenger interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	Status(ctx context.Context, id uuid.UUID) (exists bool, usedByTicket bool, err error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Passenger, error)
-	GetPassengers(ctx context.Context, cfg pagination.CfgCondition) ([]entity.Passenger, int, error)
+	GetPassengers(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Passenger, hypermedia.Links, error)
 }
 
 type passengerMySQL struct {
@@ -80,11 +80,11 @@ func (pds *passengerMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Pa
 	)
 }
 
-func (pds *passengerMySQL) GetPassengers(ctx context.Context, cfg pagination.CfgCondition) ([]entity.Passenger, int, error) {
-	return dbutil.PaginationWithCondition[entity.Passenger](
+func (pds *passengerMySQL) GetPassengers(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Passenger, hypermedia.Links, error) {
+	return dbutil.PaginateWithCondition[entity.Passenger](
 		ctx,
 		pds.db,
-		cfg,
+		p,
 	)
 }
 

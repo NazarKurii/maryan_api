@@ -63,8 +63,8 @@ func (p Passenger) Simplify() PassengerSimplified {
 	}
 }
 
-func MigratePassenger(db *gorm.DB) {
-	db.AutoMigrate(
+func MigratePassenger(db *gorm.DB) error {
+	return db.AutoMigrate(
 		&Passenger{},
 	)
 }

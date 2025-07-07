@@ -5,9 +5,10 @@ import (
 	"maryan_api/config"
 	"maryan_api/internal/domain/passenger/service"
 	"maryan_api/internal/entity"
+	"maryan_api/pkg/dbutil"
 	ginutil "maryan_api/pkg/ginutils"
 	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/pagination"
+
 	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 	"time"
@@ -86,7 +87,8 @@ func (p *passengerHandler) GetPassenger(ctx *gin.Context) {
 func (p *passengerHandler) GetPassengers(ctx *gin.Context) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request.Context(), time.Second*10)
 	defer cancel()
-	passengers, links, err := p.service.GetPassengers(ctxWithTimeout, pagination.CfgStr{
+	passengers, links, err := p.service.GetPassengers(ctxWithTimeout, dbutil.PaginationStr{
+		"customer/passengers",
 		ctx.Param("page"),
 		ctx.Param("size"),
 		ctx.Param("order_by"),

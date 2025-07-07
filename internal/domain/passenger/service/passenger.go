@@ -4,8 +4,9 @@ import (
 	"context"
 	"maryan_api/internal/domain/passenger/repo"
 	"maryan_api/internal/entity"
+	"maryan_api/pkg/dbutil"
 	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/pagination"
+
 	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 
@@ -17,7 +18,7 @@ type Passenger interface {
 	Update(ctx context.Context, passenger entity.Passenger) (uuid.UUID, error)
 	Delete(ctx context.Context, id string) error
 	GetPassenger(ctx context.Context, id string) (entity.Passenger, error)
-	GetPassengers(ctx context.Context, cfgStr pagination.CfgStr, userID uuid.UUID) ([]entity.PassengerSimplified, hypermedia.Links, error)
+	GetPassengers(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.PassengerSimplified, hypermedia.Links, error)
 }
 
 type passengerServiceImpl struct {
@@ -106,13 +107,13 @@ func (p *passengerServiceImpl) GetPassenger(ctx context.Context, idStr string) (
 	return p.repo.GetByID(ctx, id)
 }
 
-func (p *passengerServiceImpl) GetPassengers(ctx context.Context, cfgStr pagination.CfgStr, userID uuid.UUID) ([]entity.PassengerSimplified, hypermedia.Links, error) {
-	cfg, err := cfgStr.ParseWithCondition(pagination.Condition{"user_id IN ?", []any{userID}}, "surname", "name", "date_of_birth")
+func (p *passengerServiceImpl) GetPassengers(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.PassengerSimplified, hypermedia.Links, error) {
+	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"user_id IN ?", []any{userID}}, "surname", "name", "date_of_birth")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	passengers, total, err := p.repo.GetPassengers(ctx, cfg)
+	passengers, links, err := p.repo.GetPassengers(ctx, pagination)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -123,7 +124,7 @@ func (p *passengerServiceImpl) GetPassengers(ctx context.Context, cfgStr paginat
 		passengersSimplified[i] = passenger.Simplify()
 	}
 
-	return passengersSimplified, pagination.Links(total, cfg.Size, "/customer/passengers"), nil
+	return passengersSimplified, links, nil
 }
 
 func NewPassengerService(repo repo.Passenger, client *http.Client) Passenger {

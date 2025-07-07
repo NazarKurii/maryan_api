@@ -33,11 +33,8 @@ type Log struct {
 	Extentions  json.RawMessage `gorm:"type:json" json:"extensions"`
 }
 
-func Migrate(db *gorm.DB) {
-	err := db.AutoMigrate(&Log{})
-	if err != nil {
-		panic(err)
-	}
+func Migrate(db *gorm.DB) error {
+	return db.AutoMigrate(&Log{})
 }
 
 func (l *Log) Do(db *gorm.DB) {

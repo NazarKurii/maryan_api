@@ -7,13 +7,12 @@ import (
 
 	"maryan_api/internal/domain/bus/repo"
 	"maryan_api/internal/entity"
+	"maryan_api/pkg/dbutil"
 	"maryan_api/pkg/hypermedia"
 	"maryan_api/pkg/images"
-	"maryan_api/pkg/pagination"
+
 	rfc7807 "maryan_api/pkg/problem"
 	"mime/multipart"
-	"net/http"
-	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -21,7 +20,7 @@ import (
 type Bus interface {
 	Create(ctx context.Context, bus entity.Bus, busImages []*multipart.FileHeader) (uuid.UUID, error)
 	GetByID(ctx context.Context, id string) (entity.Bus, error)
-	GetBuses(ctx context.Context, cfgStr pagination.CfgStr) ([]entity.Bus, hypermedia.Links, error)
+	GetBuses(ctx context.Context, cfgStr dbutil.PaginationStr) ([]entity.Bus, hypermedia.Links, error)
 	Delete(ctx context.Context, id string) error
 	MakeActive(ctx context.Context, id string) error
 	MakeInActive(ctx context.Context, id string) error
@@ -64,23 +63,13 @@ func (b *busServiceImpl) GetByID(ctx context.Context, id string) (entity.Bus, er
 	return b.repo.GetByID(ctx, uuid)
 }
 
-func (b *busServiceImpl) GetBuses(ctx context.Context, cfgStr pagination.CfgStr) ([]entity.Bus, hypermedia.Links, error) {
-	cfg, err := cfgStr.Parse("name", "manufacturer", "date")
+func (b *busServiceImpl) GetBuses(ctx context.Context, paginationStr dbutil.PaginationStr) ([]entity.Bus, hypermedia.Links, error) {
+	pagination, err := paginationStr.Parse("name", "manufacturer", "date")
 	if err != nil {
 		return nil, nil, err
 	}
+	return b.repo.GetBuses(ctx, pagination)
 
-	buses, pages, err := b.repo.GetBuses(ctx, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var pagesUrls = make(hypermedia.Links, pages)
-	for i := 0; i < pages; i++ {
-		pagesUrls[i] = hypermedia.Link{strconv.Itoa(i + 1): hypermedia.Href{config.APIURL() + fmt.Sprintf("/admin/buses/%d/%d", i+1, cfg.Size), http.MethodGet}}
-	}
-
-	return buses, pagesUrls, nil
 }
 
 func (b *busServiceImpl) Delete(ctx context.Context, id string) error {

@@ -215,8 +215,8 @@ func (u *User) validate() rfc7807.InvalidParams {
 
 //----------------- Migrations ----------------------
 
-func MigrateUser(db *gorm.DB) {
-	db.AutoMigrate(
+func MigrateUser(db *gorm.DB) error {
+	return db.AutoMigrate(
 		&User{},
 	)
 }

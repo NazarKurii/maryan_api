@@ -57,8 +57,8 @@ func (a *Adress) Prepare(userID uuid.UUID) error {
 	return nil
 }
 
-func MigrateAdress(db *gorm.DB) {
-	db.AutoMigrate(
+func MigrateAdress(db *gorm.DB) error {
+	return db.AutoMigrate(
 		&Passenger{},
 	)
 }

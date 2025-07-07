@@ -4,7 +4,8 @@ import (
 	"context"
 	"maryan_api/internal/entity"
 	dataStore "maryan_api/internal/infrastructure/persistence"
-	"maryan_api/pkg/pagination"
+	"maryan_api/pkg/dbutil"
+	"maryan_api/pkg/hypermedia"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -17,41 +18,41 @@ type Adress interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	Status(ctx context.Context, id uuid.UUID) (exists bool, usedByTicket bool, err error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error)
-	GetAdresses(ctx context.Context, cfg pagination.CfgCondition) ([]entity.Adress, int, error)
+	GetAdresses(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Adress, hypermedia.Links, error)
 }
 
-type adressMySQL struct {
+type adressRepo struct {
 	ds dataStore.Adress
 }
 
-func (a *adressMySQL) Create(ctx context.Context, adress *entity.Adress) error {
+func (a *adressRepo) Create(ctx context.Context, adress *entity.Adress) error {
 	return a.ds.Create(ctx, adress)
 }
 
-func (a *adressMySQL) Update(ctx context.Context, adress *entity.Adress) error {
+func (a *adressRepo) Update(ctx context.Context, adress *entity.Adress) error {
 	return a.ds.Update(ctx, adress)
 }
 
-func (a *adressMySQL) ForseDelete(ctx context.Context, id uuid.UUID) error {
+func (a *adressRepo) ForseDelete(ctx context.Context, id uuid.UUID) error {
 	return a.ds.ForseDelete(ctx, id)
 }
 
-func (a *adressMySQL) SoftDelete(ctx context.Context, id uuid.UUID) error {
+func (a *adressRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return a.ds.SoftDelete(ctx, id)
 }
 
-func (a *adressMySQL) Status(ctx context.Context, id uuid.UUID) (bool, bool, error) {
+func (a *adressRepo) Status(ctx context.Context, id uuid.UUID) (bool, bool, error) {
 	return a.ds.Status(ctx, id)
 }
 
-func (a *adressMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error) {
+func (a *adressRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error) {
 	return a.ds.GetByID(ctx, id)
 }
 
-func (a *adressMySQL) GetAdresses(ctx context.Context, cfg pagination.CfgCondition) ([]entity.Adress, int, error) {
-	return a.ds.GetAdresses(ctx, cfg)
+func (a *adressRepo) GetAdresses(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Adress, hypermedia.Links, error) {
+	return a.ds.GetAdresses(ctx, p)
 }
 
 func NewPassengerRepo(db *gorm.DB) Adress {
-	return &adressMySQL{dataStore.NewAdress(db)}
+	return &adressRepo{dataStore.NewAdress(db)}
 }
