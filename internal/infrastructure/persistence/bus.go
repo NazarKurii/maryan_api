@@ -5,6 +5,7 @@ import (
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/dbutil"
 	"maryan_api/pkg/hypermedia"
+	rfc7807 "maryan_api/pkg/problem"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,7 +22,15 @@ type Bus interface {
 	MakeActive(ctx context.Context, id uuid.UUID) error
 	MakeInactive(ctx context.Context, id uuid.UUID) error
 	Exists(ctx context.Context, id uuid.UUID) (bool, error)
-	Available(ctx context.Context, id uuid.UUID, departureTime, arrivalTime time.Time, departureCountry, destinationCountry string) (bool, error)
+
+	GetAvailable(
+		ctx context.Context,
+		pagination dbutil.Pagination,
+		departureTime, arrivalTime time.Time,
+		destinationCountry string,
+	) ([]entity.Bus, hypermedia.Links, error)
+
+	Availability(ctx context.Context, id uuid.UUID, departureTime, arrivalTime time.Time) (BusAvailability, error)
 }
 
 type busMySQL struct {
@@ -98,19 +107,16 @@ func (bds *busMySQL) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	return exists, err
 }
 
-func (bds *busMySQL) Availability(
-	ctx context.Context,
-	id uuid.UUID,
-	departureTime, arrivalTime time.Time,
-	departureCountry string,
-) (available struct {
+type BusAvailability struct {
 	busy                   bool
 	lastDestinationCountry string
 	isNew                  bool
 	isActive               bool
-}, err error) {
+}
 
-	err = bds.db.WithContext(ctx).Raw(`
+func (bds *busMySQL) Availability(ctx context.Context, id uuid.UUID, departureTime, arrivalTime time.Time) (BusAvailability, error) {
+	var availability BusAvailability
+	err := bds.db.WithContext(ctx).Raw(`
 		SELECT 
 			EXISTS (
 				SELECT 1 
@@ -143,9 +149,22 @@ func (bds *busMySQL) Availability(
 				WHERE id = ?
 			) AS isActive;
 	`, id, departureTime, arrivalTime, departureTime, arrivalTime, id, departureTime, id, id).
-		Scan(&available).Error
+		Scan(&availability).Error
 
-	return available, err
+	if err != nil {
+		return availability, rfc7807.DB(err.Error())
+	}
+
+	return availability, err
+}
+
+func (bds *busMySQL) GetAvailable(ctx context.Context, pagination dbutil.Pagination, departureTime, arrivalTime time.Time, departureCountry string) ([]entity.Bus, hypermedia.Links, error) {
+	return dbutil.PaginateWithCondition[entity.Bus](ctx,
+		bds.db.Table("buses").Select("buses.*").Joins("LEFT JOIN trips on buses.id = trips.bus_id"),
+		dbutil.CondtionPagination{pagination, dbutil.Condition{
+			Where:  `(SELECT destination_country FROM trips WHERE bus_id = buses.id AND destination_country = ? AND arrival_time < ? ORDER BY arrival_time DESC LIMIT 1) IS NOT NULL  `,
+			Values: []any{departureTime, arrivalTime, departureCountry, departureTime},
+		}}, "Seats", "Structure", "Structure.Row")
 }
 
 // ------------------------Repos Initialization Functions--------------

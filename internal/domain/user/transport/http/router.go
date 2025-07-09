@@ -52,7 +52,7 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 
 	adminRouter.POST("/login", admin.adminHandler.login)
 	adminRouter.POST("/hash-password", admin.adminHandler.hashPassword)
-	authAdminRouter.GET("/users/:page/:size/:role/:order_by/:order_way", admin.adminHandler.users)
+	authAdminRouter.GET("/customers", admin.adminHandler.getCustomers)
 	authAdminRouter.POST("/new-driver", admin.adminHandler.NewUser(auth.Driver))
 	authAdminRouter.POST("/new-support", admin.adminHandler.NewUser(auth.Support))
 	authAdminRouter.POST("/new-admin", admin.adminHandler.NewUser(auth.Admin))

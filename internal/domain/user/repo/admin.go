@@ -29,6 +29,10 @@ func (ar *adminRepo) NewUser(ctx context.Context, user *entity.User) error {
 	return ar.store.NewUser(ctx, user)
 }
 
+func (ar *adminRepo) SetEmployeeAvailability(ctx context.Context, user *entity.User) error {
+	return ar.store.NewUser(ctx, user)
+}
+
 // Constructor function
 func NewAdminRepo(db *gorm.DB) AdminRepo {
 	return &adminRepo{

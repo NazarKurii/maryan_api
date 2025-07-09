@@ -10,16 +10,16 @@ import (
 )
 
 type Adress struct {
-	ID              uuid.UUID `gorm:"type:uuid;primaryKey"`
-	User_ID         uuid.UUID `gorm:"type:uuid; not null" json:"user_id"`
-	Country         string    `gorm:"type:varchar(56);not null" json:"country"`
-	City            string    `gorm:"type:varchar(56);not null" json:"city"`
-	Street          string    `gorm:"type:varchar(255);not null" json:"street"`
-	HouseNumber     int       `gorm:"type:smallint; not null" json:"houseNumber"`
-	ApartmentNumber int       `gorm:"type:smallint" json:"apartmentNumber"`
-	GoogleMapsLink  string    `gorm:"type:varchar(255);not null"`
-	CreatedAt       time.Time `gorm:"not null"`
-	DeletedAt       time.Time
+	ID              uuid.UUID      `gorm:"type:uuid;primaryKey"         json:"id"`
+	User_ID         uuid.UUID      `gorm:"type:uuid; not null"          json:"-"`
+	Country         string         `gorm:"type:varchar(56);not null"    json:"country"`
+	City            string         `gorm:"type:varchar(56);not null"    json:"city"`
+	Street          string         `gorm:"type:varchar(255);not null"   json:"street"`
+	HouseNumber     int            `gorm:"type:smallint; not null"      json:"houseNumber"`
+	ApartmentNumber int            `gorm:"type:smallint"                json:"apartmentNumber"`
+	GoogleMapsLink  string         `gorm:"type:varchar(255);not null"   json:"googleMapsLink"`
+	CreatedAt       time.Time      `gorm:"not null"                     json:"-"`
+	DeletedAt       gorm.DeletedAt `                                    json:"-"`
 }
 
 func (a Adress) Validate() rfc7807.InvalidParams {

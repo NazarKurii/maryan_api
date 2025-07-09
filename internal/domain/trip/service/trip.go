@@ -33,38 +33,38 @@ type tripService struct {
 	driverRepo repo.Driver
 }
 
-func (t *tripService) Create(ctx context.Context, trip entity.Trip) (uuid.UUID, error) {
-	params := trip.Validate()
+// func (t *tripService) Create(ctx context.Context, trip entity.Trip) (uuid.UUID, error) {
+// 	params := trip.Validate()
 
-	exists, err := t.busRepo.Exists(ctx, trip.BusID)
-	if err != nil {
-		return uuid.Nil, err
-	} else if !exists {
-		params.SetInvalidParam("busID", "Non-existing bus.")
-	}
+// 	exists, err := t.busRepo.Exists(ctx, trip.BusID)
+// 	if err != nil {
+// 		return uuid.Nil, err
+// 	} else if !exists {
+// 		params.SetInvalidParam("busID", "Non-existing bus.")
+// 	}
 
-	isBusy, err := t.busRepo.IsBusy(ctx, trip.BusID, trip.DepartureTime, trip.ArrivalTime, trip.DepartureCountry, trip.DestinationCountry)
+// 	isBusy, err := t.busRepo.(ctx, trip.BusID, trip.DepartureTime, trip.ArrivalTime, trip.DepartureCountry, trip.DestinationCountry)
 
-	exists, err = t.driverRepo.Exists(ctx, trip.DriverID)
-	if err != nil {
-		return uuid.Nil, err
-	} else if !exists {
-		params.SetInvalidParam("DriverID", "Non-existing driver.")
-	}
+// 	exists, err = t.driverRepo.Exists(ctx, trip.DriverID)
+// 	if err != nil {
+// 		return uuid.Nil, err
+// 	} else if !exists {
+// 		params.SetInvalidParam("DriverID", "Non-existing driver.")
+// 	}
 
-	if params != nil {
-		return uuid.Nil, rfc7807.BadRequest("trip-data", "Trip Data Error", "Inva;id params.", params...)
-	}
+// 	if params != nil {
+// 		return uuid.Nil, rfc7807.BadRequest("trip-data", "Trip Data Error", "Inva;id params.", params...)
+// 	}
 
-	trip.ID = uuid.New()
+// 	trip.ID = uuid.New()
 
-	err = t.tripRepo.Create(ctx, &trip)
-	if err != nil {
-		return uuid.Nil, err
-	}
+// 	err = t.tripRepo.Create(ctx, &trip)
+// 	if err != nil {
+// 		return uuid.Nil, err
+// 	}
 
-	return trip.ID, nil
-}
+// 	return trip.ID, nil
+// }
 
 func (t *tripService) GetByID(ctx context.Context, idStr string) (entity.Trip, error) {
 	id, err := uuid.Parse(idStr)

@@ -6,6 +6,7 @@ import (
 	dataStore "maryan_api/internal/infrastructure/persistence"
 	"maryan_api/pkg/dbutil"
 	"maryan_api/pkg/hypermedia"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -20,6 +21,13 @@ type Bus interface {
 	IsActive(ctx context.Context, id uuid.UUID) (bool, error)
 	MakeActive(ctx context.Context, id uuid.UUID) error
 	MakeInactive(ctx context.Context, id uuid.UUID) error
+
+	GetAvailable(
+		ctx context.Context,
+		pagination dbutil.Pagination,
+		departureTime, arrivalTime time.Time,
+		destinationCountry string,
+	) ([]entity.Bus, hypermedia.Links, error)
 }
 
 type busRepo struct {
@@ -56,6 +64,15 @@ func (b *busRepo) MakeInactive(ctx context.Context, id uuid.UUID) error {
 
 func (b *busRepo) RegistrationNumberExists(ctx context.Context, registrationNumber string) (bool, error) {
 	return b.store.RegistrationNumberExists(ctx, registrationNumber)
+}
+
+func (b *busRepo) GetAvailable(
+	ctx context.Context,
+	pagination dbutil.Pagination,
+	departureTime, arrivalTime time.Time,
+	destinationCountry string,
+) ([]entity.Bus, hypermedia.Links, error) {
+	return b.GetAvailable(ctx, pagination, departureTime, arrivalTime, destinationCountry)
 }
 
 // ------------------------Repos Initialization Functions--------------

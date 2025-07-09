@@ -3,42 +3,49 @@ package dbutil
 import (
 	"context"
 	"errors"
-	"fmt"
-	"maryan_api/config"
-	"maryan_api/pkg/hypermedia"
 	"math"
 
 	rfc7807 "maryan_api/pkg/problem"
-	"net/http"
 	"slices"
 	"strconv"
 
 	"gorm.io/gorm"
 )
 
-func Paginate[T any](ctx context.Context, db *gorm.DB, pagination Pagination, preload ...string) (entities []T, urls hypermedia.Links, err error) {
-	err = PossibleRawsAffectedError(buildRequest(ctx, db, pagination, preload...).Find(&entities), "non-existing-page")
+func Paginate[T any](ctx context.Context, db *gorm.DB, pagination Pagination, preload ...string) ([]T, int, error) {
+	var entities []T
+	err := PossibleRawsAffectedError(buildRequest(ctx, db, pagination, preload...).Find(&entities), "non-existing-page")
 	if err != nil {
-		return nil, nil, err
+		return nil, 0, err
 	}
 
-	links, err := links[T](db, pagination.Path, pagination.Size)
-	return entities, links, err
+	totalPages, err := countTotaPages[T](db, pagination.Size)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return entities, totalPages, nil
 }
 
-func PaginateWithCondition[T any](ctx context.Context, db *gorm.DB, conditionPagination CondtionPagination, preload ...string) (entities []T, urls hypermedia.Links, err error) {
-	err = PossibleRawsAffectedError(
+func PaginateWithCondition[T any](ctx context.Context, db *gorm.DB, conditionPagination CondtionPagination, preload ...string) ([]T, int, error) {
+	var entities []T
+
+	err := PossibleRawsAffectedError(
 		buildRequest(ctx, db, conditionPagination.Pagination, preload...).
 			Where(conditionPagination.Condition.Where, conditionPagination.Condition.Values...).
 			Find(&entities), "non-existing-page",
 	)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, 0, err
 	}
 
-	links, err := links[T](db, conditionPagination.Path, conditionPagination.Size)
-	return entities, links, err
+	totalPages, err := countTotaPages[T](db, conditionPagination.Size)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return entities, totalPages, nil
 }
 
 func countTotaPages[T any](db *gorm.DB, size int) (int, error) {
@@ -157,17 +164,4 @@ func (pStr PaginationStr) parseWithParams(orderBy ...string) (Pagination, rfc780
 	}
 
 	return pagination, params
-}
-
-func links[T any](db *gorm.DB, path string, size int) (hypermedia.Links, error) {
-	total, err := countTotaPages[T](db, size)
-	if err != nil {
-		return nil, err
-	}
-
-	var pagesUrls = make(hypermedia.Links, total)
-	for i := 0; i < total; i++ {
-		pagesUrls[i] = hypermedia.Link{strconv.Itoa(i + 1): hypermedia.Href{config.APIURL() + path + fmt.Sprintf("/%d/%d", i+1, size), http.MethodGet}}
-	}
-	return pagesUrls, nil
 }

@@ -21,19 +21,17 @@ type adminHandler struct {
 	service service.AdminService
 }
 
-func (ah *adminHandler) users(ctx *gin.Context) {
+func (ah *adminHandler) getCustomers(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	users, urls, err := ah.service.Users(ctxWithTimeout, dbutil.PaginationStr{
-		"admin/users",
-		ctx.Param("page"),
-		ctx.Param("size"),
-		ctx.Param("order_by"),
-		ctx.Param("order_way"),
-	},
-		ctx.Param("role"),
-	)
+	customers, urls, err := ah.service.GetCustomers(ctxWithTimeout, dbutil.PaginationStr{
+		"admin/customers",
+		ctx.DefaultQuery("page", "0"),
+		ctx.DefaultQuery("size", "20"),
+		ctx.DefaultQuery("order_by", "id"),
+		ctx.DefaultQuery("order_way", "asc"),
+	})
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -41,12 +39,12 @@ func (ah *adminHandler) users(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, struct {
 		ginutil.Response
-		Users []entity.User `json:"users"`
+		Customers []entity.User `json:"customerss"`
 	}{ginutil.Response{
-		"Users have successfuly been retrieved.",
+		"Customers have successfuly been retrieved.",
 		urls,
 	},
-		users})
+		customers})
 }
 
 func (ah *adminHandler) hashPassword(c *gin.Context) {

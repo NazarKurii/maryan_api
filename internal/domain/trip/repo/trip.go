@@ -24,6 +24,12 @@ type Trip interface {
 	Start(ctx context.Context, id uuid.UUID) error
 	Finish(ctx context.Context, id uuid.UUID) error
 	MakeSold(ctx context.Context, id uuid.UUID) error
+	Availability(ctx context.Context, id uuid.UUID, departureTime, arrivalTime time.Time) (struct {
+		busy                   bool
+		lastDestinationCountry string
+		isNew                  bool
+		isActive               bool
+	}, error)
 }
 
 type Bus interface {
@@ -32,6 +38,12 @@ type Bus interface {
 
 type Driver interface {
 	Exists(ctx context.Context, id uuid.UUID) (bool, error)
+	// Availability(ctx context.Context, id uuid.UUID, departureTime, arrivalTime time.Time) (struct {
+	// 	busy                   bool
+	// 	lastDestinationCountry string
+	// 	isNew                  bool
+	// 	isActive               bool
+	// }, error)
 }
 
 type Stop interface {
@@ -83,6 +95,14 @@ func (t *tripRepo) MakeSold(ctx context.Context, id uuid.UUID) error {
 	return t.ds.MakeSold(ctx, id)
 }
 
+func (t *tripRepo) Availability(ctx context.Context, id uuid.UUID, departureTime, arrivalTime time.Time) (struct {
+	busy                   bool
+	lastDestinationCountry string
+	isNew                  bool
+	isActive               bool
+}, error) {
+	return t.Availability(ctx, id, departureTime, arrivalTime)
+}
 func NewTrip(db *gorm.DB) Trip {
 	return &tripRepo{dataStore.NewTrip(db)}
 }

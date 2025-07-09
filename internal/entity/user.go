@@ -23,70 +23,19 @@ import (
 
 // USER
 type User struct {
-	ID          uuid.UUID    `gorm:"type:uuid;primaryKey;" json:"id" `
-	FirstName   string       `gorm:"type:varchar(50);not null" json:"firstName"  binding:"required"`
-	LastName    string       `gorm:"type:varchar(50);not null" json:"lastName"  binding:"required"`
-	DateOfBirth dateOfBirth  `gorm:"not null" json:"dateOfBirth"  binding:"required"`
-	PhoneNumber string       `gorm:"type:varchar(15);not null" json:"phoneNumber"  binding:"required"`
-	Email       string       `gorm:"type:varchar(255);not null;unique" json:"email"  binding:"required"`
-	Password    string       `gorm:"type:varchar(255);not null" json:"password"  binding:"required"`
-	ImageUrl    string       `gorm:"type:varchar(255);not null" json:"imageUrl"`
-	Sex         userSex      `gorm:"type:enum('Female','Male');not null" json:"sex"`
-	Role        userRole     `gorm:"type:enum('Customer','Admin','Driver','Support');not null" json:"role"`
-	CreatedAt   time.Time    `gorm:"not null;default:CURRENT_TIMESTAMP" json:"createdAt"`
-	UpdatedAt   time.Time    `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updatedAt"`
-	DeletedAt   sql.NullTime `gorm:"index" json:"deletedAt"`
-}
-
-// USER -> DATEOFBIRTH
-type dateOfBirth struct {
-	time.Time
-}
-
-func (dob *dateOfBirth) UnmarshalJSON(b []byte) error {
-	s := strings.Trim(string(b), `"`)
-
-	// parse using the correct layout "2006-01-02"
-	t, err := time.Parse("2006-01-02", s)
-	if err != nil {
-		return err
-	}
-	dob.Time = t
-	return nil
-}
-
-func (dob *dateOfBirth) Scan(value interface{}) error {
-	if value == nil {
-		*dob = dateOfBirth{Time: time.Time{}}
-		return nil
-	}
-
-	switch v := value.(type) {
-	case time.Time:
-		*dob = dateOfBirth{Time: v}
-	case []byte:
-		t, err := time.Parse("2006-01-02", string(v))
-		if err != nil {
-			return err
-		}
-		*dob = dateOfBirth{Time: t}
-	case string:
-		t, err := time.Parse("2006-01-02", v)
-		if err != nil {
-			return err
-		}
-		*dob = dateOfBirth{Time: t}
-	default:
-		return fmt.Errorf("expected time.Time or string for dateOfBirth scan, got %T", value)
-	}
-	return nil
-}
-
-func (dob dateOfBirth) Value() (driver.Value, error) {
-	if dob.IsZero() {
-		return nil, nil
-	}
-	return dob.Time.Format("2006-01-02"), nil
+	ID          uuid.UUID      `gorm:"type:uuid;primaryKey"                                              json:"id"`
+	FirstName   string         `gorm:"type:varchar(50);not null"                                         json:"firstName"`
+	LastName    string         `gorm:"type:varchar(50);not null"                                         json:"lastName"`
+	DateOfBirth time.Time      `gorm:"type:DATE;not null"                                                json:"dateOfBirth"`
+	PhoneNumber string         `gorm:"type:varchar(15);not null"                                         json:"phoneNumber"`
+	Email       string         `gorm:"type:varchar(255);not null;unique; index"                          json:"email"`
+	Password    string         `gorm:"type:varchar(255);not null"                                        json:"password"`
+	ImageUrl    string         `gorm:"type:varchar(255);not null"                                        json:"imageUrl"`
+	Sex         userSex        `gorm:"type:enum('Female','Male');not null"                               json:"sex"`
+	Role        userRole       `gorm:"type:enum('Customer','Admin','Driver','Support');not null"         json:"role"`
+	CreatedAt   time.Time      `gorm:"not null"                                                          json:"createdAt"`
+	UpdatedAt   time.Time      `gorm:"not null"                                                          json:"updatedAt"`
+	DeletedAt   gorm.DeletedAt `                                                                         json:"deletedAt"`
 }
 
 // USER -> ROLE
@@ -148,17 +97,6 @@ func sexImage(sex string) (string, error) {
 
 }
 
-func (s *userSex) UnmarshalJSON(b []byte) error {
-	var sexStr string
-	if err := json.Unmarshal(b, &sexStr); err != nil {
-		return err
-	}
-
-	*s = userSex(sexStr)
-	return nil
-
-}
-
 // ************************************* //
 // USER HELPING METHODS FOR THE SERVICE //
 // ************************************* //
@@ -213,11 +151,47 @@ func (u *User) validate() rfc7807.InvalidParams {
 	return params
 }
 
+func (u *User) PrepareNew() {
+	u.ID = uuid.New()
+}
+
+func (u *User) PrepareNewEmployee(firstWorkingDay time.Time) EmployeeAvailability {
+	u.PrepareNew()
+	return EmployeeAvailability{
+		UserID: u.ID,
+		Status: EmployeeAvailabilityStatusUnavailable,
+		FinishedAt: sql.NullTime{
+			firstWorkingDay,
+			true,
+		},
+	}
+}
+
+type EmployeeAvailability struct {
+	UserID     uuid.UUID                  `gorm:"type:uuid; not null" json:"-"`
+	Status     employeeAvailabilityStatus `gorm:"type:enum('Available','Unavailable','Sick','Terminated','Resigned','Retired','Laid Off'); not null" json:"status"`
+	StartedAt  time.Time                  `gorm:"not null;default:CURRENT_TIME_STAMP" json:"startedAt"`
+	FinishedAt sql.NullTime               `json:"finishedAt"`
+}
+
+type employeeAvailabilityStatus string
+
+const (
+	EmployeeAvailabilityStatusAvailable   employeeAvailabilityStatus = "Available"
+	EmployeeAvailabilityStatusUnavailable employeeAvailabilityStatus = "Unavailable"
+	EmployeeAvailabilityStatusSick        employeeAvailabilityStatus = "Sick"
+	EmployeeAvailabilityStatusTerminated  employeeAvailabilityStatus = "Terminated"
+	EmployeeAvailabilityStatusResigned    employeeAvailabilityStatus = "Resigned"
+	EmployeeAvailabilityStatusRetired     employeeAvailabilityStatus = "Retired"
+	EmployeeAvailabilityStatusLaidOff     employeeAvailabilityStatus = "Laid Off"
+)
+
 //----------------- Migrations ----------------------
 
 func MigrateUser(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&User{},
+		&EmployeeAvailability{},
 	)
 }
 
@@ -228,7 +202,7 @@ type UserSimplified struct {
 	ID          uuid.UUID `json:"id"`
 	FirstName   string    `json:"firstName"`
 	LastName    string    `json:"lastName"`
-	DateOfBirth string    `json:"dateOfBirth"`
+	DateOfBirth time.Time `json:"dateOfBirth"`
 	PhoneNumber string    `json:"phoneNumber"`
 	Email       string    `json:"email"`
 	ImageUrl    string    `json:"imageUrl"`
@@ -240,30 +214,11 @@ func (user User) ToSimplified() UserSimplified {
 		ID:          user.ID,
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
-		DateOfBirth: user.DateOfBirth.String(),
+		DateOfBirth: user.DateOfBirth,
 		PhoneNumber: user.PhoneNumber,
 		Email:       user.Email,
 		ImageUrl:    user.ImageUrl,
 	}
-}
-
-func (su UserSimplified) ToUser(role auth.Role) (User, error) {
-	dob, err := time.Parse(time.RFC3339, su.DateOfBirth)
-	if err != nil {
-		return User{}, err
-	}
-
-	return User{
-		ID:          su.ID,
-		FirstName:   su.FirstName,
-		LastName:    su.LastName,
-		DateOfBirth: dateOfBirth{dob},
-		PhoneNumber: su.PhoneNumber,
-		Email:       su.Email,
-		ImageUrl:    su.ImageUrl,
-		Role:        userRole{role},
-		Sex:         userSex(su.Sex),
-	}, nil
 }
 
 type RegistrantionUser struct {
@@ -271,13 +226,19 @@ type RegistrantionUser struct {
 	Password string `json:"password"`
 }
 
-func (ru RegistrantionUser) ToNewUser(role auth.Role) (User, rfc7807.InvalidParams) {
-	user, _ := ru.UserSimplified.ToUser(role)
-	user.Password = ru.Password
-	user.ID = uuid.New()
-	params := user.validate()
-
-	return user, params
+func (ru RegistrantionUser) ToUser(role auth.Role) User {
+	return User{
+		ID:          ru.ID,
+		FirstName:   ru.FirstName,
+		LastName:    ru.LastName,
+		DateOfBirth: ru.DateOfBirth,
+		PhoneNumber: ru.PhoneNumber,
+		Email:       ru.Email,
+		ImageUrl:    ru.ImageUrl,
+		Role:        userRole{role},
+		Sex:         userSex(ru.Sex),
+		Password:    ru.Password,
+	}
 }
 
 func NewForGoogleOAUTH(email, name, surname string) User {
@@ -286,7 +247,7 @@ func NewForGoogleOAUTH(email, name, surname string) User {
 		Email:       email,
 		FirstName:   name,
 		LastName:    surname,
-		DateOfBirth: dateOfBirth{time.Now().AddDate(-25, 0, 0)},
+		DateOfBirth: time.Now().UTC().AddDate(-25, 0, 0),
 		ImageUrl:    "https://example.com/default-guest-avatar.png",
 		Role:        userRole{auth.Customer},
 	}

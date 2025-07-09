@@ -13,7 +13,6 @@ import (
 	rfc7807 "maryan_api/pkg/problem"
 	"mime/multipart"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -30,13 +29,7 @@ type adminServiceImpl struct {
 	client *http.Client
 }
 
-func (as adminServiceImpl) Users(ctx context.Context, paginationStr dbutil.PaginationStr, rolesStr string) ([]entity.User, hypermedia.Links, error) {
-	roles := strings.Split(rolesStr, "+")
-	length := len(roles)
-	var rolesAny = make([]any, length)
-	for i := 0; i < length; i++ {
-		rolesAny[i] = roles[i]
-	}
+func (as adminServiceImpl) GetCustomers(ctx context.Context, paginationStr dbutil.PaginationStr) ([]entity.User, hypermedia.Links, error) {
 
 	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"role IN ?", []any{rolesAny}})
 	if err != nil {

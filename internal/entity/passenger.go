@@ -9,13 +9,13 @@ import (
 )
 
 type Passenger struct {
-	ID          uuid.UUID `gorm:"type:uuid; primaryKey;" json:"id"`
-	UserID      uuid.UUID `gorm:"type:uuid;" json:"-"`
-	Name        string    `gorm:"type:varchar(255); not null" json:"name"`
-	Surname     string    `gorm:"type:varchar(255); not null" json:"surname"`
-	DateOfBirth time.Time `gorm:"not null" json:"dateOfBirth"`
-	CreatedAt   time.Time `gorm:"not null"`
-	DeletedAt   time.Time `gorm:"index"`
+	ID          uuid.UUID      `gorm:"type:uuid; primaryKey;"         json:"id"`
+	UserID      uuid.UUID      `gorm:"type:uuid;"                     json:"-"`
+	Name        string         `gorm:"type:varchar(255); not null"    json:"name"`
+	Surname     string         `gorm:"type:varchar(255); not null"    json:"surname"`
+	DateOfBirth time.Time      `gorm:"not null"                       json:"dateOfBirth"`
+	CreatedAt   time.Time      `gorm:"not null"                       json:"-"`
+	DeletedAt   gorm.DeletedAt `                                      json:"-"`
 }
 
 func (p *Passenger) Prepare(userID uuid.UUID) rfc7807.InvalidParams {
@@ -45,22 +45,6 @@ func (p *Passenger) Validate() rfc7807.InvalidParams {
 	}
 
 	return params
-}
-
-type PassengerSimplified struct {
-	ID      uuid.UUID `gorm:"type:uuid; primaryKey;" json:"id"`
-	UserID  uuid.UUID `gorm:"type:uuid;" json:"-"`
-	Name    string    `gorm:"type:varchar(255); not null" json:"name"`
-	Surname string    `gorm:"type:varchar(255); not null" json:"surname"`
-}
-
-func (p Passenger) Simplify() PassengerSimplified {
-	return PassengerSimplified{
-		ID:      p.ID,
-		UserID:  p.UserID,
-		Name:    p.Name,
-		Surname: p.Surname,
-	}
 }
 
 func MigratePassenger(db *gorm.DB) error {
