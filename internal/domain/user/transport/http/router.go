@@ -52,10 +52,14 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 
 	adminRouter.POST("/login", admin.adminHandler.login)
 	adminRouter.POST("/hash-password", admin.adminHandler.hashPassword)
-	authAdminRouter.GET("/customers", admin.adminHandler.getCustomers)
-	authAdminRouter.POST("/new-driver", admin.adminHandler.NewUser(auth.Driver))
-	authAdminRouter.POST("/new-support", admin.adminHandler.NewUser(auth.Support))
-	authAdminRouter.POST("/new-admin", admin.adminHandler.NewUser(auth.Admin))
+	authAdminRouter.GET("/users", admin.adminHandler.getUsers)
+	authAdminRouter.GET("/user", admin.adminHandler.getUser)
+	authAdminRouter.GET("", admin.adminHandler.get)
+	authAdminRouter.POST("/driver", admin.adminHandler.newEmployee(auth.Driver))
+	authAdminRouter.POST("/support", admin.adminHandler.newEmployee(auth.Support))
+	authAdminRouter.POST("/admin", admin.adminHandler.newEmployee(auth.Admin))
+	authAdminRouter.POST("/employee-schedule", admin.adminHandler.setEmployeeAvailability)
+	authAdminRouter.GET("/available-employees", admin.adminHandler.getAvailableEmployees)
 
 	//ADMIN ROUTES
 	driver := Driver{newUserHandler(service.NewUserService(auth.Driver, repo.NewUserRepo(db)))}
@@ -104,5 +108,9 @@ var (
 
 	loginJWTLink = hypermedia.Link{
 		"loginJWT": {Href: "/customer/login-jwt", Method: "POST"},
+	}
+
+	getUsers = hypermedia.Link{
+		"createDriver": {Href: "/admin/users", Method: "GET"},
 	}
 )

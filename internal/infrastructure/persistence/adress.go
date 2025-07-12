@@ -4,7 +4,6 @@ import (
 	"context"
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
 	rfc7807 "maryan_api/pkg/problem"
 
 	"github.com/google/uuid"
@@ -18,7 +17,7 @@ type Adress interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	Status(ctx context.Context, id uuid.UUID) (exists bool, usedByTicket bool, err error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error)
-	GetAdresses(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Adress, hypermedia.Links, error)
+	GetAdresses(ctx context.Context, p dbutil.Pagination) ([]entity.Adress, int, error)
 }
 
 type adressMySQL struct {
@@ -80,12 +79,8 @@ func (ams *adressMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Adres
 	)
 }
 
-func (ams *adressMySQL) GetAdresses(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Adress, hypermedia.Links, error) {
-	return dbutil.PaginateWithCondition[entity.Adress](
-		ctx,
-		ams.db,
-		p,
-	)
+func (ams *adressMySQL) GetAdresses(ctx context.Context, p dbutil.Pagination) ([]entity.Adress, int, error) {
+	return dbutil.Paginate[entity.Adress](ctx, ams.db, p)
 }
 
 func NewAdress(db *gorm.DB) Adress {

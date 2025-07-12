@@ -21,7 +21,6 @@ type tripStatus string
 const (
 	TripStatusRegistered        = "Registered"
 	TripStatusCanceled          = "Canceled"
-	TripStatusChangedDriver     = "Changed Driver"
 	TripStatusChangedBus        = "Changed Bus"
 	TripStatusStarted           = "Started"
 	TripStatusOutboundDone      = "Outbound Done"
@@ -33,7 +32,7 @@ const (
 
 type TripUpdate struct {
 	TripID    uuid.UUID  `json:"-"          gorm:"type:uuid;not null"`
-	Status    tripStatus `json:"status"     gorm:"type:enum('Registered','Canceled','Changed Driver','Changed Bus','Started','Outbound Done','Break Down','Broken Bus Fixed','Broken Bus Replaced','Finished');not null"`
+	Status    tripStatus `json:"status"     gorm:"type:enum('Registered','Canceled','Changed Bus','Started','Outbound Done','Break Down','Broken Bus Fixed','Broken Bus Replaced','Finished');not null"`
 	CreatedAt time.Time  `json:"createdAt"  gorm:"not null"`
 	Comment   string     `json:"comment"    gorm:"type:varchar(500)"`
 }

@@ -16,7 +16,6 @@ type CustomerRepo interface {
 
 	Create(ctx context.Context, user *entity.User) error
 	Delete(ctx context.Context, id uuid.UUID) error
-	EmailExists(ctx context.Context, email string) (bool, error)
 
 	StartEmailVerification(ctx context.Context, session objectvalue.EmailVerificationSession) (uuid.UUID, error)
 	EmailVerificationSession(ctx context.Context, sessionID uuid.UUID) (objectvalue.EmailVerificationSession, error)
@@ -39,14 +38,6 @@ func (cr *customerRepo) Create(ctx context.Context, u *entity.User) error {
 
 func (cr *customerRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return cr.store.Delete(ctx, id)
-}
-
-func (cr *customerRepo) EmailExists(ctx context.Context, email string) (bool, error) {
-	return cr.store.EmailExists(ctx, email)
-}
-
-func (cr *customerRepo) UserExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
-	return cr.store.UserExists(ctx, email)
 }
 
 func (cr *customerRepo) StartEmailVerification(ctx context.Context, session objectvalue.EmailVerificationSession) (uuid.UUID, error) {

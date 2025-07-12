@@ -63,6 +63,5 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5hemFyYWRtaW5AZ21haWwuY29tIiw
 
 
 
-  1. Redo bus domain to include driver
-  2.Exclude driver seat from bus structure.
-  3.Add route to get available drivers for bus asigning.
+1.Check if the bus is in trip when changing driver
+22.Schedule change via id in query params

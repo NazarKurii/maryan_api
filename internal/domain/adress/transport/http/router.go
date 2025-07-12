@@ -21,7 +21,7 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 
 	customerRouter.POST("/passenger", handler.CreateAdress)
 	customerRouter.GET("/passenger/:id", handler.GetAdress)
-	customerRouter.GET("/passengers/:page/:size/:order_by/:order_way", handler.GetAdress)
+	customerRouter.GET("/passengers", handler.GetAdress)
 	customerRouter.PUT("/passenger", handler.UpdateAdress)
 	customerRouter.DELETE("/passenger/:id", handler.DeleteAdress)
 }

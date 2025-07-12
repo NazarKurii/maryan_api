@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type adminHandler struct {
@@ -21,17 +22,18 @@ type adminHandler struct {
 	service service.AdminService
 }
 
-func (ah *adminHandler) getCustomers(ctx *gin.Context) {
+func (ah *adminHandler) getUsers(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	customers, urls, err := ah.service.GetCustomers(ctxWithTimeout, dbutil.PaginationStr{
-		"admin/customers",
+	users, urls, err := ah.service.GetUsers(ctxWithTimeout, dbutil.PaginationStr{
+		"admin/users",
 		ctx.DefaultQuery("page", "0"),
 		ctx.DefaultQuery("size", "20"),
 		ctx.DefaultQuery("order_by", "id"),
 		ctx.DefaultQuery("order_way", "asc"),
-	})
+		ctx.DefaultQuery("search", ""),
+	}, ctx.DefaultQuery("roles", "admin+driver+support"))
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -39,12 +41,34 @@ func (ah *adminHandler) getCustomers(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, struct {
 		ginutil.Response
-		Customers []entity.User `json:"customerss"`
+		Users []entity.UserSimplified `json:"users"`
 	}{ginutil.Response{
-		"Customers have successfuly been retrieved.",
+		"Users have successfuly been retrieved.",
 		urls,
 	},
-		customers})
+		users})
+}
+
+func (ah *adminHandler) getUser(ctx *gin.Context) {
+	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
+	defer cancel()
+
+	user, err := ah.service.GetUserByID(ctxWithTimeout, ctx.Param("id"))
+	if err != nil {
+		ginutil.ServiceErrorAbort(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, struct {
+		ginutil.Response
+		entity.User `json:"user"`
+	}{
+		ginutil.Response{
+			"The user has successfuly been found.",
+			[]hypermedia.Link{deleteUserLink},
+		},
+		user,
+	})
 }
 
 func (ah *adminHandler) hashPassword(c *gin.Context) {
@@ -73,9 +97,9 @@ func (ah *adminHandler) hashPassword(c *gin.Context) {
 	})
 }
 
-func (ah *adminHandler) NewUser(role auth.Role) func(ctx *gin.Context) {
+func (ah *adminHandler) newEmployee(role auth.Role) func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
-		var user entity.RegistrantionUser
+		var user entity.RegistrantionEmployee
 
 		if err := ctx.ShouldBindJSON(&user); err != nil {
 			ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest("user-parsing", "Body Parsing Error", err.Error()))
@@ -89,21 +113,10 @@ func (ah *adminHandler) NewUser(role auth.Role) func(ctx *gin.Context) {
 			}
 		}
 
-		type Headers struct {
-			EmailToken  string `header:"X-Email-Access-Token" binding:"required"`
-			NumberToken string `header:"X-Number-Access-Token" binding:"required"`
-		}
-
-		var headers Headers
-		if err := ctx.ShouldBindHeader(&headers); err != nil {
-			ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest("headers-parsing-error", "Headers Error", err.Error()))
-			return
-		}
-
 		ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 		defer cancel()
 
-		token, err := ah.service.NewUser(ctxWithTimeout, user, image, role)
+		token, err := ah.service.NewEmployee(ctxWithTimeout, user, image, role)
 		if err != nil {
 			ginutil.ServiceErrorAbort(ctx, err)
 			return
@@ -115,12 +128,89 @@ func (ah *adminHandler) NewUser(role auth.Role) func(ctx *gin.Context) {
 		}{
 
 			ginutil.Response{
-				"The user has successfuly been saved.",
+				"The employee has successfuly been saved.",
 				[]hypermedia.Link{deleteUserLink},
 			},
 			token,
 		})
 	}
+}
+
+func (ah *adminHandler) setEmployeeAvailability(ctx *gin.Context) {
+	var request struct {
+		Schedule []entity.EmployeeAvailability `json:"schedule"`
+	}
+
+	err := ctx.ShouldBindJSON(&request)
+	if err != nil {
+		ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest("body-parsing", "Body Parsing Error", err.Error()))
+		return
+	}
+
+	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
+	defer cancel()
+
+	err = ah.service.SetEmployeeAvailability(ctxWithTimeout, request.Schedule)
+	if err != nil {
+		ginutil.ServiceErrorAbort(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, ginutil.Response{
+		"The users's schedule has successfuly been updated.",
+		hypermedia.Links{
+			getUsers,
+		},
+	})
+}
+
+func (ah *adminHandler) get(ctx *gin.Context) {
+	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
+	defer cancel()
+
+	user, err := ah.service.GetByID(ctxWithTimeout, ctx.MustGet("userID").(uuid.UUID))
+	if err != nil {
+		ginutil.ServiceErrorAbort(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, struct {
+		ginutil.Response
+		entity.User `json:"user"`
+	}{
+		ginutil.Response{
+			"The user has successfuly been found.",
+			hypermedia.Links{},
+		},
+		user,
+	})
+}
+
+func (ah *adminHandler) getAvailableEmployees(ctx *gin.Context) {
+	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
+	defer cancel()
+
+	users, urls, err := ah.service.GetAvailableEmployees(ctxWithTimeout, dbutil.PaginationStr{
+		"admin/available-employees",
+		ctx.DefaultQuery("page", "0"),
+		ctx.DefaultQuery("size", "20"),
+		ctx.DefaultQuery("order_by", "id"),
+		ctx.DefaultQuery("order_way", "asc"),
+		ctx.DefaultQuery("search", ""),
+	}, ctx.DefaultQuery("roles", "admin+driver+support"), ctx.DefaultQuery("from", ""), ctx.DefaultQuery("to", ""))
+	if err != nil {
+		ginutil.ServiceErrorAbort(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, struct {
+		ginutil.Response
+		Users []entity.UserSimplified `json:"users"`
+	}{ginutil.Response{
+		"Users have successfuly been retrieved.",
+		urls,
+	},
+		users})
 }
 
 // Declaration function

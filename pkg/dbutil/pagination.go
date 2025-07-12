@@ -3,6 +3,7 @@ package dbutil
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 
 	rfc7807 "maryan_api/pkg/problem"
@@ -14,33 +15,14 @@ import (
 
 func Paginate[T any](ctx context.Context, db *gorm.DB, pagination Pagination, preload ...string) ([]T, int, error) {
 	var entities []T
+
 	err := PossibleRawsAffectedError(buildRequest(ctx, db, pagination, preload...).Find(&entities), "non-existing-page")
+
 	if err != nil {
 		return nil, 0, err
 	}
 
 	totalPages, err := countTotaPages[T](db, pagination.Size)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return entities, totalPages, nil
-}
-
-func PaginateWithCondition[T any](ctx context.Context, db *gorm.DB, conditionPagination CondtionPagination, preload ...string) ([]T, int, error) {
-	var entities []T
-
-	err := PossibleRawsAffectedError(
-		buildRequest(ctx, db, conditionPagination.Pagination, preload...).
-			Where(conditionPagination.Condition.Where, conditionPagination.Condition.Values...).
-			Find(&entities), "non-existing-page",
-	)
-
-	if err != nil {
-		return nil, 0, err
-	}
-
-	totalPages, err := countTotaPages[T](db, conditionPagination.Size)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -61,7 +43,7 @@ func countTotaPages[T any](db *gorm.DB, size int) (int, error) {
 func buildRequest(ctx context.Context, db *gorm.DB, pagination Pagination, preload ...string) *gorm.DB {
 	pagination.Page--
 
-	var request = db.WithContext(ctx).Limit(pagination.Size).Offset(pagination.Page * pagination.Size).Order(pagination.Order)
+	var request = db.WithContext(ctx).Limit(pagination.Size).Offset(pagination.Page*pagination.Size).Order(pagination.Order).Where(pagination.Condition.Where, pagination.Condition.Values...)
 
 	if len(preload) != 0 {
 		for _, v := range preload {
@@ -78,17 +60,14 @@ type PaginationStr struct {
 	Size     string
 	OrderBy  string
 	OrderWay string
+	Search   string
 }
 
 type Pagination struct {
-	Path  string
-	Page  int
-	Size  int
-	Order string
-}
-
-type CondtionPagination struct {
-	Pagination
+	Path      string
+	Page      int
+	Size      int
+	Order     string
 	Condition Condition
 }
 
@@ -97,8 +76,8 @@ type Condition struct {
 	Values []any
 }
 
-func (p PaginationStr) ParseWithCondition(condition Condition, orderBy ...string) (CondtionPagination, error) {
-	pagination, params := p.parseWithParams(orderBy...)
+func (p PaginationStr) ParseWithCondition(condition Condition, search []string, orderBy ...string) (Pagination, error) {
+	pagination, params := p.parseWithParams(search, orderBy...)
 
 	if condition.Where == "" {
 		params.SetInvalidParam("Condition.Where", "Empty condition.")
@@ -109,21 +88,24 @@ func (p PaginationStr) ParseWithCondition(condition Condition, orderBy ...string
 	}
 
 	if params != nil {
-		return CondtionPagination{}, rfc7807.BadRequest("invalid, data", "Invalid Pagination Data Error", "Provided data is invald.", params...)
+		return Pagination{}, rfc7807.BadRequest("invalid, data", "Invalid Pagination Data Error", "Provided data is invald.", params...)
 	}
 
-	return CondtionPagination{pagination, condition}, nil
+	pagination.Condition.Where += "AND " + condition.Where
+	pagination.Condition.Values = append(pagination.Condition.Values, condition.Values...)
+
+	return pagination, nil
 }
 
-func (pStr PaginationStr) Parse(orderBy ...string) (Pagination, error) {
-	pagination, params := pStr.parseWithParams(orderBy...)
+func (pStr PaginationStr) Parse(search []string, orderBy ...string) (Pagination, error) {
+	pagination, params := pStr.parseWithParams(search, orderBy...)
 	if params != nil {
 		return Pagination{}, rfc7807.BadRequest("invalid, data", "Invalid Pagination Data Error", "Provided data is invald.", params...)
 	}
 	return pagination, nil
 }
 
-func (pStr PaginationStr) parseWithParams(orderBy ...string) (Pagination, rfc7807.InvalidParams) {
+func (pStr PaginationStr) parseWithParams(search []string, orderBy ...string) (Pagination, rfc7807.InvalidParams) {
 	var params rfc7807.InvalidParams
 	var err error
 	stringToInt := func(s string, name string, destination *int) {
@@ -163,5 +145,16 @@ func (pStr PaginationStr) parseWithParams(orderBy ...string) (Pagination, rfc780
 		params.SetInvalidParam("path", "Empty.")
 	}
 
+	pagination.Condition.Where = "("
+
+	for i, v := range search {
+		if i != 0 {
+			v = "OR " + v
+		}
+		pagination.Condition.Where += fmt.Sprintf("%s LIKE CONCAT('%', ?, '%')", v)
+		pagination.Condition.Values = append(pagination.Condition.Values, pStr.Search)
+	}
+
+	pagination.Condition.Where += ")"
 	return pagination, params
 }

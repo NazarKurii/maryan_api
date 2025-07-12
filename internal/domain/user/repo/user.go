@@ -14,7 +14,8 @@ import (
 type UserRepo interface {
 	GetByID(ctx context.Context, id uuid.UUID) (entity.User, error)
 	Login(ctx context.Context, email string) (uuid.UUID, string, error)
-	UserExists(ctx context.Context, email string) (uuid.UUID, bool, error)
+	EmailExists(ctx context.Context, email string) (uuid.UUID, bool, error)
+	UserExists(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
 // MYSQL implementation
@@ -30,10 +31,13 @@ func (ur *userRepo) Login(ctx context.Context, email string) (uuid.UUID, string,
 	return ur.store.Login(ctx, email)
 }
 
-func (ur *userRepo) UserExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
-	return ur.store.UserExists(ctx, email)
+func (ur *userRepo) EmailExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
+	return ur.store.EmailExists(ctx, email)
 }
 
+func (ur *userRepo) UserExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	return ur.store.UserExists(ctx, id)
+}
 func NewUserRepo(db *gorm.DB) UserRepo {
 	return &userRepo{dataStore.NewUser(db)}
 }

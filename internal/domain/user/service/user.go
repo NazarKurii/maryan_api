@@ -16,7 +16,7 @@ type UserService interface {
 	//----------Not authenticated------------------
 	Login(ctx context.Context, email, password string) (string, error)
 	LoginJWT(ctx context.Context, id uuid.UUID, email string) (string, error)
-	GetByID(ctx context.Context, id uuid.UUID) (entity.UserSimplified, error)
+	GetByID(ctx context.Context, id uuid.UUID) (entity.User, error)
 	//------------Authenticated--------------------
 
 	SecretKey() []byte
@@ -70,7 +70,7 @@ func (us *userServiceImpl) LoginJWT(ctx context.Context, id uuid.UUID, email str
 		)
 	}
 
-	validID, exists, err := us.repo.UserExists(ctx, email)
+	validID, exists, err := us.repo.EmailExists(ctx, email)
 	if err != nil {
 		return "", err
 	}
@@ -96,13 +96,8 @@ func (us *userServiceImpl) LoginJWT(ctx context.Context, id uuid.UUID, email str
 	return token, err
 }
 
-func (us *userServiceImpl) GetByID(ctx context.Context, id uuid.UUID) (entity.UserSimplified, error) {
-	user, err := us.repo.GetByID(ctx, id)
-	if err != nil {
-		return entity.UserSimplified{}, err
-	}
-
-	return user.ToSimplified(), nil
+func (us *userServiceImpl) GetByID(ctx context.Context, id uuid.UUID) (entity.User, error) {
+	return us.repo.GetByID(ctx, id)
 }
 
 func NewUserService(role auth.Role, repo repo.UserRepo) UserService {

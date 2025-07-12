@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"maryan_api/config"
 
@@ -20,6 +21,99 @@ import (
 // ----------------------Admin Handler---------------------------
 type busHandler struct {
 	service service.Bus
+}
+
+func (b *busHandler) getAvailableBuses(ctx *gin.Context) {
+	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
+	defer cancel()
+
+	buses, urls, err := b.service.GetAvailable(ctxWithTimeout, dbutil.PaginationStr{
+		"admin/buses/available",
+		ctx.DefaultQuery("page", "0"),
+		ctx.DefaultQuery("size", "20"),
+		ctx.DefaultQuery("order_by", "id"),
+		ctx.DefaultQuery("order_way", "asc"),
+		ctx.DefaultQuery("search", ""),
+	}, ctx.DefaultQuery("from", ""), ctx.DefaultQuery("to", ""))
+	if err != nil {
+		ginutil.ServiceErrorAbort(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, struct {
+		ginutil.Response
+		Buses []entity.Bus `json:"buses"`
+	}{ginutil.Response{
+		"Users have successfuly been retrieved.",
+		urls,
+	},
+		buses})
+}
+
+const (
+	leadDriverType = iota
+	assistantDriverType
+)
+
+func (b *busHandler) changeDriver(driverType int) func(ctx *gin.Context) {
+	var serviceFunc func(ctx context.Context, busIDStr string, driverIDStr string) error
+	if driverType == leadDriverType {
+		serviceFunc = b.service.ChangeDriver(service.LeadDriver)
+	} else {
+		serviceFunc = b.service.ChangeDriver(service.AssistantDriver)
+	}
+
+	return func(ctx *gin.Context) {
+		var request struct {
+			DriverID string `json:"driverId"`
+		}
+
+		err := ctx.ShouldBindJSON(&request)
+		if err != nil {
+			ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest("body-parsing", "Body Parsing Error", err.Error()))
+			return
+		}
+
+		ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
+		defer cancel()
+
+		err = serviceFunc(ctxWithTimeout, request.DriverID, ctx.Param("id"))
+		if err != nil {
+			ginutil.ServiceErrorAbort(ctx, err)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, ginutil.Response{
+			"The driver has successfuly been changed",
+			hypermedia.Links{},
+		})
+	}
+}
+
+func (b *busHandler) setBusSchedule(ctx *gin.Context) {
+	var request struct {
+		Schedule []entity.BusAvailability `json:"schedule"`
+	}
+
+	err := ctx.ShouldBindJSON(&request)
+	if err != nil {
+		ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest("body-parsing", "Body Parsing Error", err.Error()))
+		return
+	}
+
+	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
+	defer cancel()
+
+	err = b.service.SetSchedule(ctxWithTimeout, request.Schedule)
+	if err != nil {
+		ginutil.ServiceErrorAbort(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, ginutil.Response{
+		"The schedule of the bus has successfuly been updated.",
+		hypermedia.Links{},
+	})
 }
 
 func (b *busHandler) createBus(ctx *gin.Context) {
@@ -69,8 +163,6 @@ func (b *busHandler) createBus(ctx *gin.Context) {
 		hypermedia.Links{
 			hypermedia.Link{"self": hypermedia.Href{config.APIURL() + "/admin/bus/" + id.String(), http.MethodGet}},
 			deleteBusLink,
-			makeBusActiveLink,
-			makeBusInactiveLink,
 		},
 	})
 
@@ -94,8 +186,6 @@ func (b *busHandler) getBus(ctx *gin.Context) {
 			"The bus has successfuly been found",
 			hypermedia.Links{
 				deleteBusLink,
-				makeBusActiveLink,
-				makeBusInactiveLink,
 			},
 		},
 		bus,
@@ -108,10 +198,11 @@ func (b *busHandler) getBuses(ctx *gin.Context) {
 
 	buses, urls, err := b.service.GetBuses(ctxWithTimeout, dbutil.PaginationStr{
 		"admin/buses",
-		ctx.Param("page"),
-		ctx.Param("size"),
-		ctx.Param("order_by"),
-		ctx.Param("order_way"),
+		ctx.DefaultQuery("page", "1"),
+		ctx.DefaultQuery("size", "10"),
+		ctx.DefaultQuery("order_by", ""),
+		ctx.DefaultQuery("order_way", "ASC"),
+		ctx.DefaultQuery("search", ""),
 	})
 
 	if err != nil {
@@ -128,8 +219,6 @@ func (b *busHandler) getBuses(ctx *gin.Context) {
 			"The buses have successfuly been found",
 			hypermedia.Links{
 				deleteBusLink,
-				makeBusActiveLink,
-				makeBusInactiveLink,
 			},
 		},
 		buses,
@@ -151,47 +240,6 @@ func (b *busHandler) deleteBus(ctx *gin.Context) {
 		"The bus has successfuly been deleted",
 		hypermedia.Links{
 			createBusLink,
-
-			makeBusActiveLink,
-			makeBusInactiveLink,
-		},
-	})
-}
-
-func (b *busHandler) makeBusActive(ctx *gin.Context) {
-	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
-	defer cancel()
-
-	err := b.service.MakeActive(ctxWithTimeout, ctx.Param("id"))
-	if err != nil {
-		ginutil.ServiceErrorAbort(ctx, err)
-		return
-	}
-
-	ctx.JSON(http.StatusFound, ginutil.Response{
-		"The bus has successfuly been made active",
-		hypermedia.Links{
-			deleteBusLink,
-			makeBusInactiveLink,
-		},
-	})
-}
-
-func (b *busHandler) makeBusInactive(ctx *gin.Context) {
-	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
-	defer cancel()
-
-	err := b.service.MakeInActive(ctxWithTimeout, ctx.Param("id"))
-	if err != nil {
-		ginutil.ServiceErrorAbort(ctx, err)
-		return
-	}
-
-	ctx.JSON(http.StatusFound, ginutil.Response{
-		"The bus has successfuly been made inactive",
-		hypermedia.Links{
-			deleteBusLink,
-			makeBusActiveLink,
 		},
 	})
 }

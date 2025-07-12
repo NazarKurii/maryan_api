@@ -89,10 +89,11 @@ func (p *passengerHandler) GetPassengers(ctx *gin.Context) {
 	defer cancel()
 	passengers, links, err := p.service.GetPassengers(ctxWithTimeout, dbutil.PaginationStr{
 		"customer/passengers",
-		ctx.Param("page"),
-		ctx.Param("size"),
-		ctx.Param("order_by"),
-		ctx.Param("order_way"),
+		ctx.DefaultQuery("page", "0"),
+		ctx.DefaultQuery("size", "20"),
+		ctx.DefaultQuery("order_by", ""),
+		ctx.DefaultQuery("order_way", "ASC"),
+		ctx.DefaultQuery("search", ""),
 	}, ctx.MustGet("userID").(uuid.UUID))
 
 	if err != nil {
@@ -102,8 +103,8 @@ func (p *passengerHandler) GetPassengers(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, struct {
 		ginutil.Response
-		Links      hypermedia.Links             `json:"links"`
-		Passengers []entity.PassengerSimplified `json:"passengers"`
+		Links      hypermedia.Links   `json:"links"`
+		Passengers []entity.Passenger `json:"passengers"`
 	}{
 		ginutil.Response{
 			"The passengers have successfuly beeen found.",

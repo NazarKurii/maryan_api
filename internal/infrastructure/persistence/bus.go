@@ -4,33 +4,24 @@ import (
 	"context"
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
-	rfc7807 "maryan_api/pkg/problem"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Bus interface {
 	RegistrationNumberExists(ctx context.Context, registrationNumber string) (bool, error)
 	Create(ctx context.Context, bus *entity.Bus) error
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, error)
-	GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, hypermedia.Links, error)
+	GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, int, error)
 	Delete(ctx context.Context, id uuid.UUID) error
-	IsActive(ctx context.Context, id uuid.UUID) (bool, error)
-	MakeActive(ctx context.Context, id uuid.UUID) error
-	MakeInactive(ctx context.Context, id uuid.UUID) error
 	Exists(ctx context.Context, id uuid.UUID) (bool, error)
-
-	GetAvailable(
-		ctx context.Context,
-		pagination dbutil.Pagination,
-		departureTime, arrivalTime time.Time,
-		destinationCountry string,
-	) ([]entity.Bus, hypermedia.Links, error)
-
-	Availability(ctx context.Context, id uuid.UUID, departureTime, arrivalTime time.Time) (BusAvailability, error)
+	ChangeLeadDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error
+	ChangeAssistantDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error
+	GetAvailable(ctx context.Context, dates []time.Time, pagination dbutil.Pagination) ([]entity.Bus, int, error)
+	SetSchedule(ctx context.Context, schedule []entity.BusAvailability) error
 }
 
 type busMySQL struct {
@@ -46,13 +37,13 @@ func (bds *busMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, err
 	return bus, dbutil.PossibleFirstError(
 		bds.db.WithContext(ctx).
 			Preload("Rows.Seats").
-			Preload("Images").
+			Preload(clause.Associations).
 			First(&bus),
 		"non-existing-bus")
 }
 
-func (bds *busMySQL) GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, hypermedia.Links, error) {
-	return dbutil.Paginate[entity.Bus](ctx, bds.db, p, "Rows.Seats")
+func (bds *busMySQL) GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, int, error) {
+	return dbutil.Paginate[entity.Bus](ctx, bds.db.Select("id", "model", "images", "year", "lead_driver", "assistant_driver", "seats"), p, clause.Associations)
 }
 
 func (bds *busMySQL) Delete(ctx context.Context, id uuid.UUID) error {
@@ -107,64 +98,24 @@ func (bds *busMySQL) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	return exists, err
 }
 
-type BusAvailability struct {
-	busy                   bool
-	lastDestinationCountry string
-	isNew                  bool
-	isActive               bool
+func (bds *busMySQL) GetAvailable(ctx context.Context, dates []time.Time, pagination dbutil.Pagination) ([]entity.Bus, int, error) {
+	return dbutil.Paginate[entity.Bus](ctx, bds.db.
+		Table("buses").
+		Select("DISTINCT buses.*").
+		Joins("JOIN bus_availabilities ON bus_availabilities.bus_id = buses.id").
+		Where("bus_availabilities NOT IN (?)", dates), pagination)
 }
 
-func (bds *busMySQL) Availability(ctx context.Context, id uuid.UUID, departureTime, arrivalTime time.Time) (BusAvailability, error) {
-	var availability BusAvailability
-	err := bds.db.WithContext(ctx).Raw(`
-		SELECT 
-			EXISTS (
-				SELECT 1 
-				FROM trips 
-				WHERE bus_id = ? 
-				AND (
-					(departure_time BETWEEN ? AND ?) 
-					OR (arrival_time BETWEEN ? AND ?)
-				)
-			) AS busy,
-
-			(
-				SELECT destination_country 
-				FROM trips 
-				WHERE bus_id = ? 
-				AND arrival_time < ? 
-				ORDER BY arrival_time DESC
-				LIMIT 1
-			) AS lastDestinationCountry,
-
-			(
-				SELECT COUNT(*) 
-				FROM trips 
-				WHERE bus_id = ?
-			) = 0 AS isNew,
-
-			(
-				SELECT is_active 
-				FROM buses 
-				WHERE id = ?
-			) AS isActive;
-	`, id, departureTime, arrivalTime, departureTime, arrivalTime, id, departureTime, id, id).
-		Scan(&availability).Error
-
-	if err != nil {
-		return availability, rfc7807.DB(err.Error())
-	}
-
-	return availability, err
+func (dbs *busMySQL) ChangeLeadDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error {
+	return dbutil.PossibleRawsAffectedError(dbs.db.WithContext(ctx).Table("buses").Where("id = ?", busID).Update("lead_driver", driverID), "non-existing-driver")
 }
 
-func (bds *busMySQL) GetAvailable(ctx context.Context, pagination dbutil.Pagination, departureTime, arrivalTime time.Time, departureCountry string) ([]entity.Bus, hypermedia.Links, error) {
-	return dbutil.PaginateWithCondition[entity.Bus](ctx,
-		bds.db.Table("buses").Select("buses.*").Joins("LEFT JOIN trips on buses.id = trips.bus_id"),
-		dbutil.CondtionPagination{pagination, dbutil.Condition{
-			Where:  `(SELECT destination_country FROM trips WHERE bus_id = buses.id AND destination_country = ? AND arrival_time < ? ORDER BY arrival_time DESC LIMIT 1) IS NOT NULL  `,
-			Values: []any{departureTime, arrivalTime, departureCountry, departureTime},
-		}}, "Seats", "Structure", "Structure.Row")
+func (dbs *busMySQL) ChangeAssistantDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error {
+	return dbutil.PossibleRawsAffectedError(dbs.db.WithContext(ctx).Table("buses").Where("id = ?", busID).Update("assistant_driver", driverID), "non-existing-driver")
+}
+
+func (dbs *busMySQL) SetSchedule(ctx context.Context, schedule []entity.BusAvailability) error {
+	return dbutil.PossibleRawsAffectedError(dbs.db.WithContext(ctx).Create(schedule), "non-existing-bus")
 }
 
 // ------------------------Repos Initialization Functions--------------

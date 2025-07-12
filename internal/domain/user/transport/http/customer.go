@@ -276,7 +276,7 @@ func (uh *customerHandler) get(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, struct {
 		ginutil.Response
-		entity.UserSimplified `json:"user"`
+		entity.User `json:"user"`
 	}{
 		ginutil.Response{
 			"The user has successfuly been found.",
@@ -285,8 +285,6 @@ func (uh *customerHandler) get(ctx *gin.Context) {
 		user,
 	})
 }
-
-//Admin Hadler
 
 //Declaration functions
 

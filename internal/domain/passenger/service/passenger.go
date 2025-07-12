@@ -18,7 +18,7 @@ type Passenger interface {
 	Update(ctx context.Context, passenger entity.Passenger) (uuid.UUID, error)
 	Delete(ctx context.Context, id string) error
 	GetPassenger(ctx context.Context, id string) (entity.Passenger, error)
-	GetPassengers(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.PassengerSimplified, hypermedia.Links, error)
+	GetPassengers(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.Passenger, hypermedia.Links, error)
 }
 
 type passengerServiceImpl struct {
@@ -107,24 +107,18 @@ func (p *passengerServiceImpl) GetPassenger(ctx context.Context, idStr string) (
 	return p.repo.GetByID(ctx, id)
 }
 
-func (p *passengerServiceImpl) GetPassengers(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.PassengerSimplified, hypermedia.Links, error) {
-	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"user_id IN ?", []any{userID}}, "surname", "name", "date_of_birth")
+func (p *passengerServiceImpl) GetPassengers(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.Passenger, hypermedia.Links, error) {
+	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"user_id IN ?", []any{userID}}, []string{"surname, name, date_of_birth"}, "surname", "name", "date_of_birth")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	passengers, links, err := p.repo.GetPassengers(ctx, pagination)
+	passengers, total, err := p.repo.GetPassengers(ctx, pagination)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var passengersSimplified = make([]entity.PassengerSimplified, len(passengers))
-
-	for i, passenger := range passengers {
-		passengersSimplified[i] = passenger.Simplify()
-	}
-
-	return passengersSimplified, links, nil
+	return passengers, hypermedia.Pagination(paginationStr, total), nil
 }
 
 func NewPassengerService(repo repo.Passenger, client *http.Client) Passenger {

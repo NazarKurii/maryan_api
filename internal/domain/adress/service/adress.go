@@ -108,12 +108,25 @@ func (a *adressServiceImpl) GetByID(ctx context.Context, idStr string) (entity.A
 }
 
 func (a *adressServiceImpl) GetAdresses(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.Adress, hypermedia.Links, error) {
-	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"user_id IN ?", []any{userID}}, "city", "country", "street", "post_code")
+
+	pagination, err := paginationStr.ParseWithCondition(
+		dbutil.Condition{
+			Where:  "user_id = ?",
+			Values: []any{userID},
+		},
+		[]string{"country", "city", "street"},
+		"city", "country", "street", "post_code",
+	)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return a.repo.GetAdresses(ctx, pagination)
+	adresses, total, err := a.repo.GetAdresses(ctx, pagination)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return adresses, hypermedia.Pagination(paginationStr, total), nil
 }
 
 func NewAdressService(repo repo.Adress, client *http.Client) Adress {

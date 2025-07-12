@@ -5,7 +5,6 @@ import (
 	"maryan_api/internal/entity"
 	dataStore "maryan_api/internal/infrastructure/persistence"
 	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -18,7 +17,7 @@ type Adress interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	Status(ctx context.Context, id uuid.UUID) (exists bool, usedByTicket bool, err error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error)
-	GetAdresses(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Adress, hypermedia.Links, error)
+	GetAdresses(ctx context.Context, p dbutil.Pagination) ([]entity.Adress, int, error)
 }
 
 type adressRepo struct {
@@ -49,7 +48,7 @@ func (a *adressRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, 
 	return a.ds.GetByID(ctx, id)
 }
 
-func (a *adressRepo) GetAdresses(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Adress, hypermedia.Links, error) {
+func (a *adressRepo) GetAdresses(ctx context.Context, p dbutil.Pagination) ([]entity.Adress, int, error) {
 	return a.ds.GetAdresses(ctx, p)
 }
 

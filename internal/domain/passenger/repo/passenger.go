@@ -5,7 +5,6 @@ import (
 	"maryan_api/internal/entity"
 	dataStore "maryan_api/internal/infrastructure/persistence"
 	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -18,7 +17,7 @@ type Passenger interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	Status(ctx context.Context, id uuid.UUID) (exists bool, usedByTicket bool, err error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Passenger, error)
-	GetPassengers(ctx context.Context, pagiantion dbutil.CondtionPagination) ([]entity.Passenger, hypermedia.Links, error)
+	GetPassengers(ctx context.Context, pagiantion dbutil.Pagination) ([]entity.Passenger, int, error)
 }
 
 type passengerRepo struct {
@@ -49,7 +48,7 @@ func (p *passengerRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Passe
 	return p.ds.GetByID(ctx, id)
 }
 
-func (p *passengerRepo) GetPassengers(ctx context.Context, pagiantion dbutil.CondtionPagination) ([]entity.Passenger, hypermedia.Links, error) {
+func (p *passengerRepo) GetPassengers(ctx context.Context, pagiantion dbutil.Pagination) ([]entity.Passenger, int, error) {
 	return p.ds.GetPassengers(ctx, pagiantion)
 }
 

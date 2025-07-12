@@ -5,7 +5,6 @@ import (
 	"maryan_api/internal/entity"
 	objectvalue "maryan_api/internal/valueobject"
 	"maryan_api/pkg/dbutil"
-	rfc7807 "maryan_api/pkg/problem"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -17,7 +16,6 @@ type Customer interface {
 
 	Create(ctx context.Context, user *entity.User) error
 	Delete(ctx context.Context, id uuid.UUID) error
-	EmailExists(ctx context.Context, email string) (bool, error)
 
 	StartEmailVerification(ctx context.Context, session objectvalue.EmailVerificationSession) (uuid.UUID, error)
 	EmailVerificationSession(ctx context.Context, sessionID uuid.UUID) (objectvalue.EmailVerificationSession, error)
@@ -42,15 +40,6 @@ func (cds *customerMySQL) Delete(ctx context.Context, id uuid.UUID) error {
 		cds.db.WithContext(ctx).Delete(&entity.User{ID: id}),
 		"non-existing-user",
 	)
-}
-
-func (cds *customerMySQL) EmailExists(ctx context.Context, email string) (bool, error) {
-	var exists bool
-	result := cds.db.WithContext(ctx).Raw("SELECT EXISTS(SELECT 1 FROM users WHERE email = ?)", email).Scan(&exists)
-	if result.Error != nil {
-		return false, rfc7807.DB(result.Error.Error())
-	}
-	return exists, nil
 }
 
 func (cds *customerMySQL) StartEmailVerification(ctx context.Context, session objectvalue.EmailVerificationSession) (uuid.UUID, error) {

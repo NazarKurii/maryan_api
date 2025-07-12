@@ -13,20 +13,21 @@ type Bus struct {
 	ID                 uuid.UUID      `gorm:"type:uuid;primaryKey"                         json:"id"`
 	Model              string         `gorm:"type:varchar(255);not null"                   json:"model"`
 	Images             []BusImage     `gorm:"not null"                                     json:"imageURL"`
-	IsActive           bool           `gorm:"not null"                                     json:"isActive"`
-	RegistrationNumber string         `gorm:"type:varchar(8);not null;unique"              json:"registrationNumber"`
-	Year               int            `gorm:"type:smallint;not null"                       json:"year"`
-	GpsTrackerID       string         `gorm:"type:varchar(255);not null"                   json:"gpsTrackerID"`
-	LeadDriver         *User          `gorm:"foreignKey:LeadDriverID;references:ID"        json:"-"`
-	LeadDriverID       uuid.UUID      `gorm:"type:uuid;not null"                           json:"leadDriverID"`
-	AssistantDriver    *User          `gorm:"foreignKey:AssistantDriverID;references:ID"   json:"-"`
-	AssistantDriverID  uuid.UUID      `gorm:"type:uuid;not null"                           json:"assistantDriverID"`
-	Seats              []Seat         `gorm:"foreignKey:BusID"                             json:"rows"`
-	Structure          []Row          `gorm:"not null"                                     json:"structure"`
-	CreatedAt          time.Time      `gorm:"not null"                                     json:"createdAt"`
-	UpdatedAt          time.Time      `gorm:"not null"                                     json:"updatedAt"`
-	DeletedAt          gorm.DeletedAt `gorm:"index"                                        json:"deletedAt"`
+	RegistrationNumber string         `gorm:"type:varchar(8);not null;unique"              json:"registrationNumber;omitemty"`
+	Year               int            `gorm:"type:smallint;not null"                       json:"year;omitemty"`
+	GpsTrackerID       string         `gorm:"type:varchar(255);not null"                   json:"gpsTrackerID;omitemty"`
+	LeadDriver         *User          `gorm:"foreignKey:LeadDriverID;references:ID"        json:"leadDriver"`
+	LeadDriverID       uuid.UUID      `gorm:"type:uuid;not null"                           json:"-"`
+	AssistantDriver    *User          `gorm:"foreignKey:AssistantDriverID;references:ID"   json:"assistantDriver"`
+	AssistantDriverID  uuid.UUID      `gorm:"type:uuid;not null"                           json:"-"`
+	Seats              []Seat         `gorm:"foreignKey:BusID"                             json:"rows;omitemty"`
+	Structure          []Row          `gorm:"not null"                                     json:"structure;omitemty"`
+	CreatedAt          time.Time      `gorm:"not null"                                     json:"createdAt;omitemty"`
+	UpdatedAt          time.Time      `gorm:"not null"                                     json:"updatedAt;omitemty"`
+	DeletedAt          gorm.DeletedAt `gorm:"index"                                        json:"deletedAt;omitemty"`
 }
+
+//
 
 type Seat struct {
 	ID     uuid.UUID `gorm:"type:uuid;primaryKey;"                                              json:"id"`
@@ -60,6 +61,30 @@ type SeatPosition struct {
 type BusImage struct {
 	BusID uuid.UUID `gorm:"type:uuid;not null"             json:"-"`
 	Url   string    `gorm:"type:varchar(255);not null"     json:"url"`
+}
+
+type BusAvailability struct {
+	BusID   uuid.UUID             `gorm:"type:uuid; not null"                                                  json:"-"`
+	Status  busAvailabilityStatus `gorm:"type:enum('Other','Broken','Busy'); not null"                         json:"status"`
+	Date    time.Time             `gorm:"not null;default:CURRENT_TIME_STAMP"                                  json:"date"`
+	Comment string                `gorm:"type:varchar(500)"                                                    json:"comment;omitempty"`
+}
+
+type busAvailabilityStatus string
+
+const (
+	BusAvailabilityStatusBroken busAvailabilityStatus = "Broken"
+	BusAvailabilityStatusOther  busAvailabilityStatus = "Other"
+	BusAvailabilityStatusBusy   busAvailabilityStatus = "Busy"
+)
+
+func (ba busAvailabilityStatus) IsValid() bool {
+	switch ba {
+	case BusAvailabilityStatusBroken, BusAvailabilityStatusOther, BusAvailabilityStatusBusy:
+		return true
+	default:
+		return false
+	}
 }
 
 func (b *Bus) Prepare() rfc7807.InvalidParams {

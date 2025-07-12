@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -113,7 +112,7 @@ func (u *User) fomratPhoneNumber() error {
 	return nil
 }
 
-func (u *User) validate() rfc7807.InvalidParams {
+func (u *User) Validate() rfc7807.InvalidParams {
 	var params rfc7807.InvalidParams
 
 	if len(u.FirstName) < 1 {
@@ -151,40 +150,78 @@ func (u *User) validate() rfc7807.InvalidParams {
 	return params
 }
 
-func (u *User) PrepareNew() {
-	u.ID = uuid.New()
+func (u *User) PrepareNew() rfc7807.InvalidParams {
+	invalidParams := u.Validate()
+	if invalidParams == nil {
+		u.ID = uuid.New()
+	}
+	return invalidParams
 }
 
-func (u *User) PrepareNewEmployee(firstWorkingDay time.Time) EmployeeAvailability {
+func (u *User) PrepareNewEmployee(firstWorkingDay time.Time) ([]EmployeeAvailability, error) {
+	params := u.Validate()
 	u.PrepareNew()
-	return EmployeeAvailability{
-		UserID: u.ID,
-		Status: EmployeeAvailabilityStatusUnavailable,
-		FinishedAt: sql.NullTime{
-			firstWorkingDay,
-			true,
-		},
+
+	now := time.Now()
+
+	if firstWorkingDay.Before(now) {
+		params.SetInvalidParam("firstWorkingDay", "Invalid first working day date.")
 	}
+
+	datesAmount := int(firstWorkingDay.Sub(now).Hours() / 24)
+	var employeeAvailabilityDates = make([]EmployeeAvailability, datesAmount)
+
+	for i := 0; i < datesAmount; i++ {
+		employeeAvailabilityDates[i] = EmployeeAvailability{
+			u.ID,
+			EmployeeAvailabilityStatusOther,
+			now.Add(time.Duration(i) * 24 * time.Hour),
+			"Before first working day",
+		}
+	}
+
+	return employeeAvailabilityDates, rfc7807.BadRequest(
+		"user-credentials-validation",
+		"user Credentials Error",
+		"Could not save the user due to invalid credentials.",
+		params...,
+	)
 }
 
 type EmployeeAvailability struct {
-	UserID     uuid.UUID                  `gorm:"type:uuid; not null" json:"-"`
-	Status     employeeAvailabilityStatus `gorm:"type:enum('Available','Unavailable','Sick','Terminated','Resigned','Retired','Laid Off'); not null" json:"status"`
-	StartedAt  time.Time                  `gorm:"not null;default:CURRENT_TIME_STAMP" json:"startedAt"`
-	FinishedAt sql.NullTime               `json:"finishedAt"`
+	UserID  uuid.UUID                  `gorm:"type:uuid; not null"                                                  json:"id"`
+	Status  employeeAvailabilityStatus `gorm:"type:enum('Unavailable','Sick','Other','Busy'); not null"             json:"status"`
+	Date    time.Time                  `gorm:"not null;default:CURRENT_TIME_STAMP"                                  json:"date"`
+	Comment string                     `gorm:"type:varchar(500)"                                                    json:"comment;omitempty"`
 }
 
 type employeeAvailabilityStatus string
 
 const (
-	EmployeeAvailabilityStatusAvailable   employeeAvailabilityStatus = "Available"
 	EmployeeAvailabilityStatusUnavailable employeeAvailabilityStatus = "Unavailable"
 	EmployeeAvailabilityStatusSick        employeeAvailabilityStatus = "Sick"
-	EmployeeAvailabilityStatusTerminated  employeeAvailabilityStatus = "Terminated"
-	EmployeeAvailabilityStatusResigned    employeeAvailabilityStatus = "Resigned"
-	EmployeeAvailabilityStatusRetired     employeeAvailabilityStatus = "Retired"
-	EmployeeAvailabilityStatusLaidOff     employeeAvailabilityStatus = "Laid Off"
+	EmployeeAvailabilityStatusOther       employeeAvailabilityStatus = "Other"
+	EmployeeAvailabilityStatusBusy        employeeAvailabilityStatus = "Busy"
 )
+
+type EmployeeAvailabilityJSON struct {
+	UserID  string                     `json:"id"`
+	Status  employeeAvailabilityStatus `json:"status"`
+	Date    time.Time                  `json:"date"`
+	Comment string                     `json:"comment;omitempty"`
+}
+
+func (status employeeAvailabilityStatus) IsValid() bool {
+	switch status {
+	case EmployeeAvailabilityStatusUnavailable,
+		EmployeeAvailabilityStatusSick,
+		EmployeeAvailabilityStatusOther,
+		EmployeeAvailabilityStatusBusy:
+		return true
+	default:
+		return false
+	}
+}
 
 //----------------- Migrations ----------------------
 
@@ -209,7 +246,7 @@ type UserSimplified struct {
 	Sex         string    `json:"sex"`
 }
 
-func (user User) ToSimplified() UserSimplified {
+func (user User) Simplify() UserSimplified {
 	return UserSimplified{
 		ID:          user.ID,
 		FirstName:   user.FirstName,
@@ -221,9 +258,22 @@ func (user User) ToSimplified() UserSimplified {
 	}
 }
 
+func SimplifyUsers(users []User) []UserSimplified {
+	var simplifiedUsers = make([]UserSimplified, len(users))
+	for i, user := range users {
+		simplifiedUsers[i] = user.Simplify()
+	}
+	return simplifiedUsers
+}
+
 type RegistrantionUser struct {
 	UserSimplified
 	Password string `json:"password"`
+}
+
+type RegistrantionEmployee struct {
+	RegistrantionUser
+	Starts time.Time `json:"starts"`
 }
 
 func (ru RegistrantionUser) ToUser(role auth.Role) User {
@@ -239,6 +289,21 @@ func (ru RegistrantionUser) ToUser(role auth.Role) User {
 		Sex:         userSex(ru.Sex),
 		Password:    ru.Password,
 	}
+}
+
+func (re RegistrantionEmployee) ToUser(role auth.Role) (User, time.Time) {
+	return User{
+		ID:          re.ID,
+		FirstName:   re.FirstName,
+		LastName:    re.LastName,
+		DateOfBirth: re.DateOfBirth,
+		PhoneNumber: re.PhoneNumber,
+		Email:       re.Email,
+		ImageUrl:    re.ImageUrl,
+		Role:        userRole{role},
+		Sex:         userSex(re.Sex),
+		Password:    re.Password,
+	}, re.Starts
 }
 
 func NewForGoogleOAUTH(email, name, surname string) User {

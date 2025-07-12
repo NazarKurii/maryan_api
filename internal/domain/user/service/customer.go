@@ -85,7 +85,8 @@ func (cs *customerServiceImpl) VerifyNumberToken(token string, number string) er
 }
 
 func (cs *customerServiceImpl) Register(ctx context.Context, ru entity.RegistrantionUser, image *multipart.FileHeader, emailAccessToken, numberAccessToken string) (string, error) {
-	u, invalidParams := ru.ToNewUser(cs.Role())
+	u := ru.ToUser(cs.Role())
+	invalidParams := u.PrepareNew()
 
 	err := cs.VerifyEmailToken(emailAccessToken, u.Email)
 	if err != nil {
@@ -105,8 +106,6 @@ func (cs *customerServiceImpl) Register(ctx context.Context, ru entity.Registran
 			invalidParams...,
 		)
 	}
-
-	u.ID = uuid.New()
 
 	if image != nil {
 		err := images.Save("../../../../static/imgs/"+u.ID.String(), image)
@@ -141,7 +140,7 @@ func (cs *customerServiceImpl) VerifyEmail(ctx context.Context, email string) (s
 		)
 	}
 
-	exists, err := cs.repo.EmailExists(ctx, email)
+	_, exists, err := cs.repo.EmailExists(ctx, email)
 	if err != nil || exists {
 		return "", true, err
 	}
@@ -275,7 +274,7 @@ func (cs *customerServiceImpl) GoogleOAUTH(ctx context.Context, code string) (st
 		return "", false, err
 	}
 
-	id, exists, err := cs.repo.UserExists(ctx, credentials.Email)
+	id, exists, err := cs.repo.EmailExists(ctx, credentials.Email)
 	if err != nil {
 		return "", false, err
 	}

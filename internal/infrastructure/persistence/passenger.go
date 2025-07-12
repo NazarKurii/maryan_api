@@ -4,7 +4,6 @@ import (
 	"context"
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
 	rfc7807 "maryan_api/pkg/problem"
 
 	"github.com/google/uuid"
@@ -18,7 +17,7 @@ type Passenger interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	Status(ctx context.Context, id uuid.UUID) (exists bool, usedByTicket bool, err error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Passenger, error)
-	GetPassengers(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Passenger, hypermedia.Links, error)
+	GetPassengers(ctx context.Context, p dbutil.Pagination) ([]entity.Passenger, int, error)
 }
 
 type passengerMySQL struct {
@@ -80,12 +79,8 @@ func (pds *passengerMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Pa
 	)
 }
 
-func (pds *passengerMySQL) GetPassengers(ctx context.Context, p dbutil.CondtionPagination) ([]entity.Passenger, hypermedia.Links, error) {
-	return dbutil.PaginateWithCondition[entity.Passenger](
-		ctx,
-		pds.db,
-		p,
-	)
+func (pds *passengerMySQL) GetPassengers(ctx context.Context, p dbutil.Pagination) ([]entity.Passenger, int, error) {
+	return dbutil.Paginate[entity.Passenger](ctx, pds.db, p)
 }
 
 func NewPassenger(db *gorm.DB) Passenger {

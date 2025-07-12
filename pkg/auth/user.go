@@ -3,6 +3,8 @@ package auth
 import (
 	"fmt"
 	"maryan_api/config"
+	rfc7807 "maryan_api/pkg/problem"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -68,4 +70,18 @@ func DefineRole(role string) (Role, error) {
 	default:
 		return nil, fmt.Errorf("unknown role: %s", role)
 	}
+}
+
+func SplitIntoRoles(rolesStr string) ([]string, error) {
+	roles := strings.Split(rolesStr, "+")
+	for i, role := range roles {
+		role = strings.ToUpper(string(role[0])) + strings.ToLower(role[0:])
+		if _, err := DefineRole(role); err != nil {
+			return nil, rfc7807.BadRequest("non-existing-role", "Non-existing Role Error", "There is no role with provided name.")
+		}
+
+		roles[i] = role
+	}
+
+	return roles, nil
 }

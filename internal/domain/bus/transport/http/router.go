@@ -15,15 +15,17 @@ import (
 func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 
 	adminRouter := ginutil.CreateAuthRouter("/admin", auth.Admin.SecretKey(), s)
-	handler := newBusHandler(service.NewBusService(repo.NewBusRepo(db)))
+	handler := newBusHandler(service.NewBusService(repo.NewBusRepo(db), repo.NewDriverRepo(db)))
 
 	//-----------------------BusRoutes------------------------------------
 	adminRouter.POST("/bus", handler.createBus)
 	adminRouter.GET("/bus/:id", handler.getBus)
-	adminRouter.GET("/buses/:page/:size/:order_by/:order_way", handler.getBuses)
+	adminRouter.GET("/buses", handler.getBuses)
 	adminRouter.DELETE("/bus", handler.deleteBus)
-	adminRouter.PATCH("/bus/make-inactive/:id", handler.makeBusInactive)
-	adminRouter.PATCH("/bus/make-active/:id", handler.makeBusActive)
+	adminRouter.POST("/bus/schedule", handler.setBusSchedule)
+	adminRouter.PATCH("/bus/:id/lead-driver", handler.changeDriver(leadDriverType))
+	adminRouter.PATCH("/bus/:id/assistant-driver", handler.changeDriver(assistantDriverType))
+	adminRouter.GET("/buses/available", handler.getAvailableBuses)
 }
 
 // -------------Links-----------------
@@ -37,12 +39,4 @@ var listBusesLink = hypermedia.Link{
 
 var deleteBusLink = hypermedia.Link{
 	"deleteBus": {Href: "/bus", Method: "DELETE"},
-}
-
-var makeBusActiveLink = hypermedia.Link{
-	"makeBusActive": {Href: "/bus/make-active", Method: "PUT"},
-}
-
-var makeBusInactiveLink = hypermedia.Link{
-	"makeBusInactive": {Href: "/bus/make-inactive", Method: "PUT"},
 }

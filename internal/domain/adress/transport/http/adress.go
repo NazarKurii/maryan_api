@@ -89,10 +89,11 @@ func (a *adressHandler) GetAdresses(ctx *gin.Context) {
 	defer cancel()
 	adresses, links, err := a.service.GetAdresses(ctxWithTimeout, dbutil.PaginationStr{
 		"/customer/adresses",
-		ctx.Param("page"),
-		ctx.Param("size"),
-		ctx.Param("order_by"),
-		ctx.Param("order_way"),
+		ctx.DefaultQuery("page", "1"),
+		ctx.DefaultQuery("size", "20"),
+		ctx.DefaultQuery("order_by", "country"),
+		ctx.DefaultQuery("order_way", "ASC"),
+		ctx.DefaultQuery("search", ""),
 	}, ctx.MustGet("userID").(uuid.UUID))
 
 	if err != nil {

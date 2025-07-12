@@ -13,8 +13,8 @@ import (
 type User interface {
 	GetByID(ctx context.Context, id uuid.UUID) (entity.User, error)
 	Login(ctx context.Context, email string) (uuid.UUID, string, error)
-	UserExists(ctx context.Context, email string) (uuid.UUID, bool, error)
-	UserExistsByID(ctx context.Context, id uuid.UUID) (bool, error)
+	EmailExists(ctx context.Context, email string) (uuid.UUID, bool, error)
+	UserExists(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
 // MySQL implementation
@@ -39,7 +39,7 @@ func (uds *userMySQL) Login(ctx context.Context, email string) (uuid.UUID, strin
 	return user.ID, user.Password, err
 }
 
-func (uds *userMySQL) UserExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
+func (uds *userMySQL) EmailExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
 	var user entity.User
 	err := dbutil.PossibleRawsAffectedError(
 		uds.db.WithContext(ctx).Select("id").Where("email = ?", email).First(&user),
@@ -48,7 +48,7 @@ func (uds *userMySQL) UserExists(ctx context.Context, email string) (uuid.UUID, 
 	return user.ID, user.ID != uuid.Nil, err
 }
 
-func (uds *userMySQL) UserExistsByID(ctx context.Context, id uuid.UUID) (bool, error) {
+func (uds *userMySQL) UserExists(ctx context.Context, id uuid.UUID) (bool, error) {
 	var exists bool
 	err := dbutil.PossibleRawsAffectedError(
 		uds.db.WithContext(ctx).Select("SELECT EXISTS(SELECT 1 FROM users WHERE id = ?)", id).Scan(exists),
