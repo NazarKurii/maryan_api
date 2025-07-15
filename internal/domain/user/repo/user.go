@@ -15,7 +15,7 @@ type UserRepo interface {
 	GetByID(ctx context.Context, id uuid.UUID) (entity.User, error)
 	Login(ctx context.Context, email string) (uuid.UUID, string, error)
 	EmailExists(ctx context.Context, email string) (uuid.UUID, bool, error)
-	UserExists(ctx context.Context, id uuid.UUID) (bool, error)
+	Exists(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
 // MYSQL implementation
@@ -35,8 +35,8 @@ func (ur *userRepo) EmailExists(ctx context.Context, email string) (uuid.UUID, b
 	return ur.store.EmailExists(ctx, email)
 }
 
-func (ur *userRepo) UserExists(ctx context.Context, id uuid.UUID) (bool, error) {
-	return ur.store.UserExists(ctx, id)
+func (ur *userRepo) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
+	return ur.store.Exists(ctx, id)
 }
 func NewUserRepo(db *gorm.DB) UserRepo {
 	return &userRepo{dataStore.NewUser(db)}

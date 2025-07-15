@@ -12,10 +12,11 @@ import (
 
 type AdminRepo interface {
 	UserRepo
-	Users(ctx context.Context, pagination dbutil.Pagination) ([]entity.User, int, error)
+	Users(ctx context.Context, pagination dbutil.Pagination) ([]entity.User, int, error, bool)
 	NewUser(ctx context.Context, user *entity.User) error
 	SetEmployeeAvailability(ctx context.Context, schedule []entity.EmployeeAvailability) error
-	GetAvailableUsers(ctx context.Context, dates []time.Time, p dbutil.Pagination) ([]entity.User, int, error)
+	GetAvailableUsers(ctx context.Context, dates []time.Time, p dbutil.Pagination) ([]entity.User, int, error, bool)
+	GetFreeDrivers(ctx context.Context, pagination dbutil.Pagination) ([]entity.User, int, error, bool)
 }
 
 type adminRepo struct {
@@ -23,8 +24,12 @@ type adminRepo struct {
 	store dataStore.AdminDataStore
 }
 
-func (ar *adminRepo) Users(ctx context.Context, pagination dbutil.Pagination) ([]entity.User, int, error) {
+func (ar *adminRepo) Users(ctx context.Context, pagination dbutil.Pagination) ([]entity.User, int, error, bool) {
 	return ar.store.Users(ctx, pagination)
+}
+
+func (ar *adminRepo) GetFreeDrivers(ctx context.Context, pagination dbutil.Pagination) ([]entity.User, int, error, bool) {
+	return ar.store.GetFreeDrivers(ctx, pagination)
 }
 
 func (ar *adminRepo) NewUser(ctx context.Context, user *entity.User) error {
@@ -35,7 +40,7 @@ func (ar *adminRepo) SetEmployeeAvailability(ctx context.Context, schedule []ent
 	return ar.store.SetEmployeeAvailability(ctx, schedule)
 }
 
-func (ar *adminRepo) GetAvailableUsers(ctx context.Context, dates []time.Time, p dbutil.Pagination) ([]entity.User, int, error) {
+func (ar *adminRepo) GetAvailableUsers(ctx context.Context, dates []time.Time, p dbutil.Pagination) ([]entity.User, int, error, bool) {
 	return ar.store.GetAvailableUsers(ctx, dates, p)
 }
 

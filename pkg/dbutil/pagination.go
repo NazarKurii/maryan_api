@@ -13,42 +13,40 @@ import (
 	"gorm.io/gorm"
 )
 
-func Paginate[T any](ctx context.Context, db *gorm.DB, pagination Pagination, preload ...string) ([]T, int, error) {
+func Paginate[T any](ctx context.Context, db *gorm.DB, pagination Pagination, preload ...string) ([]T, int, error, bool) {
 	var entities []T
 
-	err := PossibleRawsAffectedError(buildRequest(ctx, db, pagination, preload...).Find(&entities), "non-existing-page")
+	err := PossibleDbError(buildRequest(ctx, db, pagination, preload...).Find(&entities))
 
-	if err != nil {
-		return nil, 0, err
+	if err != nil || len(entities) == 0 {
+
+		return nil, 0, err, true
 	}
 
-	totalPages, err := countTotaPages[T](db, pagination.Size)
+	totalPages, err := countTotaPages[T](ctx, db, pagination.Size, pagination)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, err, true
 	}
 
-	return entities, totalPages, nil
+	return entities, totalPages, nil, false
 }
 
-func countTotaPages[T any](db *gorm.DB, size int) (int, error) {
+func countTotaPages[T any](ctx context.Context, db *gorm.DB, size int, pagination Pagination) (int, error) {
 	var model T
 	var totalInDbINT64 int64
-	err := db.Model(&model).Count(&totalInDbINT64).Error
-	if err != nil || totalInDbINT64 == 0 {
-		return 0, rfc7807.DB("Could not count buses.")
+	err := db.WithContext(ctx).Where(pagination.Condition.Where, pagination.Condition.Values...).Model(&model).Count(&totalInDbINT64).Error
+	if err != nil {
+		return 0, rfc7807.DB(err.Error())
 	}
 	return int(math.Ceil(float64(totalInDbINT64) / float64(size))), nil
 }
 
 func buildRequest(ctx context.Context, db *gorm.DB, pagination Pagination, preload ...string) *gorm.DB {
 	pagination.Page--
+	var request = db.WithContext(ctx).Limit(pagination.Size).Offset(pagination.Page*pagination.Size).Order("id, "+pagination.Order).Where(pagination.Condition.Where, pagination.Condition.Values...)
 
-	var request = db.WithContext(ctx).Limit(pagination.Size).Offset(pagination.Page*pagination.Size).Order(pagination.Order).Where(pagination.Condition.Where, pagination.Condition.Values...)
-
-	if len(preload) != 0 {
-		for _, v := range preload {
-			request.Preload(v)
-		}
+	for _, v := range preload {
+		request = request.Preload(v)
 	}
 
 	return request
@@ -91,7 +89,11 @@ func (p PaginationStr) ParseWithCondition(condition Condition, search []string, 
 		return Pagination{}, rfc7807.BadRequest("invalid, data", "Invalid Pagination Data Error", "Provided data is invald.", params...)
 	}
 
-	pagination.Condition.Where += "AND " + condition.Where
+	if p.Search != "" {
+		pagination.Condition.Where += "AND "
+	}
+
+	pagination.Condition.Where += condition.Where
 	pagination.Condition.Values = append(pagination.Condition.Values, condition.Values...)
 
 	return pagination, nil
@@ -135,9 +137,12 @@ func (pStr PaginationStr) parseWithParams(search []string, orderBy ...string) (P
 	}
 
 	switch pStr.OrderWay {
-	case "DESC", "ASC":
-		pagination.Order += " " + pStr.OrderWay
+	case "desc":
+		pagination.Order += " DESC"
+	case "asc":
+		pagination.Order += " ASC"
 	default:
+		fmt.Println(pStr.OrderWay)
 		params.SetInvalidParam("orderWay", "non-existing orderWay param.")
 	}
 
@@ -145,16 +150,19 @@ func (pStr PaginationStr) parseWithParams(search []string, orderBy ...string) (P
 		params.SetInvalidParam("path", "Empty.")
 	}
 
-	pagination.Condition.Where = "("
+	if pStr.Search != "" {
+		pagination.Condition.Where = "("
 
-	for i, v := range search {
-		if i != 0 {
-			v = "OR " + v
+		for i, v := range search {
+			if i != 0 {
+				v = "OR " + v
+			}
+			pagination.Condition.Where += fmt.Sprintf("%s LIKE CONCAT('%%', ?, '%%')", v)
+			pagination.Condition.Values = append(pagination.Condition.Values, pStr.Search)
 		}
-		pagination.Condition.Where += fmt.Sprintf("%s LIKE CONCAT('%', ?, '%')", v)
-		pagination.Condition.Values = append(pagination.Condition.Values, pStr.Search)
+
+		pagination.Condition.Where += ")"
 	}
 
-	pagination.Condition.Where += ")"
 	return pagination, params
 }

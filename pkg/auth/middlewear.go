@@ -12,6 +12,7 @@ func Authorize(secretKey []byte) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		logger := c.MustGet("logger").(log.Logger)
 		token := c.Request.Header.Get("Authorization")
+
 		if token == "" {
 			problem := rfc7807.Unauthorized("unauthorized", "Unauthorized", `Missing "Authorization" header`)
 			logger.SetProblem(problem)

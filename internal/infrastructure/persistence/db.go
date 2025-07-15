@@ -1,7 +1,9 @@
 package dataStore
 
 import (
+	"fmt"
 	"log"
+	"maryan_api/config"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"gorm.io/driver/mysql"
@@ -10,8 +12,16 @@ import (
 
 func Init() *gorm.DB {
 
+	connection := config.DB()
 	db, err := gorm.Open(mysql.New(mysql.Config{
-		DSN:               "maryan:Maryan3233@tcp(127.0.0.1:3306)/maryan?charset=utf8mb4&parseTime=True&loc=Local",
+		DSN: fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+			connection.User,
+			connection.Password,
+			connection.Host,
+			connection.Port,
+			connection.Name,
+		),
+
 		DefaultStringSize: 256,
 	}), &gorm.Config{})
 

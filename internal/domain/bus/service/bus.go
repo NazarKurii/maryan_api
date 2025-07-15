@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"maryan_api/config"
+	"path/filepath"
 	"time"
 
 	"maryan_api/internal/domain/bus/repo"
 	"maryan_api/internal/entity"
 	"maryan_api/pkg/dbutil"
 	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/images"
 	"maryan_api/pkg/timeutil"
 
 	rfc7807 "maryan_api/pkg/problem"
@@ -20,8 +20,8 @@ import (
 )
 
 type Bus interface {
-	Create(ctx context.Context, bus entity.Bus, busImages []*multipart.FileHeader) (uuid.UUID, error)
-	GetByID(ctx context.Context, id string) (entity.Bus, error)
+	Create(ctx context.Context, bus entity.NewBus, busImages []*multipart.FileHeader, saveImageFunc func(file *multipart.FileHeader, dst string) error) (uuid.UUID, error)
+	GetByID(ctx context.Context, id string) (entity.EmployeeBus, error)
 	GetBuses(ctx context.Context, cfgStr dbutil.PaginationStr) ([]entity.Bus, hypermedia.Links, error)
 	Delete(ctx context.Context, id string) error
 	ChangeDriver(driverType driverType) func(ctx context.Context, busIDStr, driverIDStr string) error
@@ -34,47 +34,61 @@ type busServiceImpl struct {
 	driver repo.Driver
 }
 
-func (b *busServiceImpl) Create(ctx context.Context, bus entity.Bus, busImages []*multipart.FileHeader) (uuid.UUID, error) {
-	params := bus.Prepare()
-	if len(busImages) == 0 {
-		params.SetInvalidParam("images", "No images attached")
+func (b *busServiceImpl) Create(ctx context.Context, newBus entity.NewBus, busImages []*multipart.FileHeader, saveImageFunc func(file *multipart.FileHeader, dst string) error) (uuid.UUID, error) {
+	bus, invalidParams := newBus.Parse()
+
+	if invalidParams != nil {
+		return uuid.Nil, rfc7807.BadRequest("invalid-bus-data", "Invalid Bus Data Error", "Invalid params.", invalidParams...)
+
 	}
-	if len(params) != 0 {
-		return uuid.Nil, rfc7807.BadRequest("invalid-bus-data", "Invalid Bus Data Error", "Invalid params.", params...)
+
+	invalidParams = bus.Prepare()
+	if len(busImages) == 0 {
+		invalidParams.SetInvalidParam("images", "No images attached")
+	}
+	if len(invalidParams) != 0 {
+		return uuid.Nil, rfc7807.BadRequest("invalid-bus-data", "Invalid Bus Data Error", "Invalid params.", invalidParams...)
 	}
 
 	for i, image := range busImages {
-		id := uuid.NewString()
-		if err := images.Save("../../../../static/imgs/"+id, image); err != nil {
-			params.SetInvalidParam(fmt.Sprintf("image(index:%d)", i), err.Error())
+		imageName := fmt.Sprintf("%s(%d).jpg", bus.ID.String(), i)
+		filePath := filepath.Join("../../static", "imgs", imageName)
+
+		if err := saveImageFunc(image, filePath); err != nil {
+			invalidParams.SetInvalidParam(fmt.Sprintf("image(index:%d)", i), err.Error())
 		} else {
-			bus.Images = append(bus.Images, entity.BusImage{bus.ID, config.APIURL() + "/imgs/" + id})
+			bus.Images = append(bus.Images, entity.BusImage{bus.ID, config.APIURL() + "/imgs/" + imageName})
 		}
 	}
 
-	if len(params) != 0 {
-		return uuid.Nil, rfc7807.BadRequest("invalid-bus-data", "Invalid Bus Data Error", "Invalid params.", params...)
+	if len(invalidParams) != 0 {
+		return uuid.Nil, rfc7807.BadRequest("invalid-bus-data", "Invalid Bus Data Error", "Invalid params.", invalidParams...)
 	}
 
 	return bus.ID, b.bus.Create(ctx, &bus)
 }
 
-func (b *busServiceImpl) GetByID(ctx context.Context, id string) (entity.Bus, error) {
+func (b *busServiceImpl) GetByID(ctx context.Context, id string) (entity.EmployeeBus, error) {
 	uuid, err := uuid.Parse(id)
 	if err != nil {
-		return entity.Bus{}, rfc7807.UUID(err.Error())
+		return entity.EmployeeBus{}, rfc7807.UUID(err.Error())
 	}
-	return b.bus.GetByID(ctx, uuid)
+	bus, err := b.bus.GetByID(ctx, uuid)
+	if err != nil {
+		return entity.EmployeeBus{}, rfc7807.UUID(err.Error())
+	}
+
+	return bus.ToEmployeeBus(), nil
 }
 
 func (b *busServiceImpl) GetBuses(ctx context.Context, paginationStr dbutil.PaginationStr) ([]entity.Bus, hypermedia.Links, error) {
-	pagination, err := paginationStr.Parse([]string{"model", "registration_number", "manufacturer", "year"}, "manufacturer", "year")
+	pagination, err := paginationStr.Parse([]string{"model", "registration_number", "manufacturer", "year"}, "manufacturer", "year", "model", "created_at")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	buses, total, err := b.bus.GetBuses(ctx, pagination)
-	if err != nil {
+	buses, total, err, empty := b.bus.GetBuses(ctx, pagination)
+	if err != nil || empty {
 		return nil, nil, err
 	}
 
@@ -106,8 +120,8 @@ func (b *busServiceImpl) GetAvailable(ctx context.Context, paginationStr dbutil.
 		return nil, nil, rfc7807.BadRequest("invalid-to-time", "Invalid To Time Error", err.Error())
 	}
 
-	buses, total, err := b.bus.GetAvailable(ctx, timeutil.FromTo(from, to), pagination)
-	if err != nil {
+	buses, total, err, empty := b.bus.GetAvailable(ctx, timeutil.DatesBetween(from, to), pagination)
+	if err != nil || empty {
 		return nil, nil, err
 	}
 

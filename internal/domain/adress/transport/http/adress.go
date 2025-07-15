@@ -17,64 +17,66 @@ import (
 	"github.com/google/uuid"
 )
 
-type adressHandler struct {
-	service service.Adress
+type addressHandler struct {
+	service service.Address
 }
 
-func (a *adressHandler) CreateAdress(ctx *gin.Context) {
-	var adress entity.Adress
-	err := ctx.ShouldBindJSON(&adress)
-	if err != nil {
-		ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest(
-			"adress-parsing",
-			"Adress Parsing Error",
-			err.Error(),
-		))
-		return
-	}
+// func (a *addressHandler) CreateAddress(ctx *gin.Context) {
+// 	var address entity.NewAddress
+// 	err := ctx.ShouldBindJSON(&address)
+// 	if err != nil {
+// 		ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest(
+// 			"address-parsing",
+// 			"Address Parsing Error",
+// 			err.Error(),
+// 		))
+// 		return
+// 	}
 
+// 	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request.Context(), time.Second*10)
+// 	defer cancel()
+
+// 	id, err := a.service.Create(ctxWithTimeout, address, ctx.MustGet("userID").(uuid.UUID))
+// 	if err != nil {
+// 		ginutil.ServiceErrorAbort(ctx, err)
+// 		return
+// 	}
+
+// 	ctx.JSON(http.StatusCreated, ginutil.Response{
+// 		"The address has successfuly been created.",
+// 		hypermedia.Links{
+
+// 			hypermedia.Link{
+// 				"self", hypermedia.LinkData{
+// 					config.APIURL() + "/address/" + id.String(),
+// 					"GET",
+// 				},
+// 			},
+
+// 			deleteAddressLink,
+// 			updateAddressLink,
+// 			getAddressLink,
+// 		},
+// 	})
+// }
+
+func (a *addressHandler) GetAddress(ctx *gin.Context) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request.Context(), time.Second*10)
 	defer cancel()
 
-	id, err := a.service.Create(ctxWithTimeout, adress, ctx.MustGet("userID").(uuid.UUID))
-	if err != nil {
-		ginutil.ServiceErrorAbort(ctx, err)
-		return
-	}
-
-	ctx.JSON(http.StatusCreated, ginutil.Response{
-		"The adress has successfuly been created.",
-		hypermedia.Links{
-			hypermedia.Link{
-				"self": hypermedia.Href{
-					config.APIURL() + "/customer/adress/" + id.String(),
-					"GET",
-				},
-			},
-			deleteAddressLink,
-			updateAddressLink,
-			getAddressLink,
-		},
-	})
-}
-
-func (a *adressHandler) GetAdress(ctx *gin.Context) {
-	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request.Context(), time.Second*10)
-	defer cancel()
-
-	adress, err := a.service.GetByID(ctxWithTimeout, ctx.Param("id"))
+	address, err := a.service.GetByID(ctxWithTimeout, ctx.Param("id"))
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
 	}
 
 	ctx.JSON(http.StatusCreated, struct {
-		Adress entity.Adress `json:"adress"`
+		Address entity.Address `json:"address"`
 		ginutil.Response
 	}{
-		adress,
+		address,
 		ginutil.Response{
-			"The adress has successfuly been created.",
+			"The address has successfuly been created.",
 			hypermedia.Links{
 				deleteAddressLink,
 				updateAddressLink,
@@ -84,15 +86,16 @@ func (a *adressHandler) GetAdress(ctx *gin.Context) {
 	})
 }
 
-func (a *adressHandler) GetAdresses(ctx *gin.Context) {
+func (a *addressHandler) GetAddresses(ctx *gin.Context) {
+
 	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request.Context(), time.Second*10)
 	defer cancel()
-	adresses, links, err := a.service.GetAdresses(ctxWithTimeout, dbutil.PaginationStr{
-		"/customer/adresses",
+	addresses, links, err := a.service.GetAddresses(ctxWithTimeout, dbutil.PaginationStr{
+		"/customer/addresses",
 		ctx.DefaultQuery("page", "1"),
-		ctx.DefaultQuery("size", "20"),
-		ctx.DefaultQuery("order_by", "country"),
-		ctx.DefaultQuery("order_way", "ASC"),
+		ctx.DefaultQuery("size", "9"),
+		ctx.DefaultQuery("order_by", "created_at"),
+		ctx.DefaultQuery("order_way", "desc"),
 		ctx.DefaultQuery("search", ""),
 	}, ctx.MustGet("userID").(uuid.UUID))
 
@@ -103,11 +106,11 @@ func (a *adressHandler) GetAdresses(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, struct {
 		ginutil.Response
-		Links    hypermedia.Links `json:"links"`
-		Adresses []entity.Adress  `json:"adresses"`
+		Links     hypermedia.Links `json:"links"`
+		Addresses []entity.Address `json:"addresses"`
 	}{
 		ginutil.Response{
-			"The adresses have successfuly beeen found.",
+			"The addresses have successfuly beeen found.",
 			hypermedia.Links{
 				deleteAddressLink,
 				updateAddressLink,
@@ -115,18 +118,18 @@ func (a *adressHandler) GetAdresses(ctx *gin.Context) {
 			},
 		},
 		links,
-		adresses,
+		addresses,
 	})
 
 }
 
-func (a *adressHandler) UpdateAdress(ctx *gin.Context) {
-	var adress entity.Adress
-	err := ctx.ShouldBindJSON(&adress)
+func (a *addressHandler) UpdateAddress(ctx *gin.Context) {
+	var address entity.Address
+	err := ctx.ShouldBindJSON(&address)
 	if err != nil {
 		ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest(
-			"adress-parsing",
-			"Adress Parsing Error",
+			"address-parsing",
+			"Address Parsing Error",
 			err.Error(),
 		))
 		return
@@ -135,18 +138,19 @@ func (a *adressHandler) UpdateAdress(ctx *gin.Context) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request.Context(), time.Second*10)
 	defer cancel()
 
-	id, err := a.service.Update(ctxWithTimeout, adress)
+	id, err := a.service.Update(ctxWithTimeout, address)
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
 	}
 
 	ctx.JSON(http.StatusCreated, ginutil.Response{
-		"The adress has successfuly been updated.",
+		"The address has successfuly been updated.",
 		hypermedia.Links{
+
 			hypermedia.Link{
-				"self": hypermedia.Href{
-					config.APIURL() + "/adress/" + id.String(),
+				"self", hypermedia.LinkData{
+					config.APIURL() + "/address/" + id.String(),
 					"GET",
 				},
 			},
@@ -157,7 +161,7 @@ func (a *adressHandler) UpdateAdress(ctx *gin.Context) {
 	})
 }
 
-func (a *adressHandler) DeleteAdress(ctx *gin.Context) {
+func (a *addressHandler) DeleteAddress(ctx *gin.Context) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request.Context(), time.Second*10)
 	defer cancel()
 
@@ -169,9 +173,10 @@ func (a *adressHandler) DeleteAdress(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated,
 		ginutil.Response{
-			"The adress has successfuly been deleted.",
+			"The address has successfuly been deleted.",
 			hypermedia.Links{
-				createAddressLink,
+				deleteAddressLink,
+				updateAddressLink,
 				getAddressLink,
 			},
 		},
@@ -180,6 +185,6 @@ func (a *adressHandler) DeleteAdress(ctx *gin.Context) {
 
 // ----------------Handlers Initialization Function---------------------
 
-func newAdressHandler(adress service.Adress) adressHandler {
-	return adressHandler{adress}
+func newAddressHandler(address service.Address) addressHandler {
+	return addressHandler{address}
 }

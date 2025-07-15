@@ -17,7 +17,7 @@ type Passenger interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	Status(ctx context.Context, id uuid.UUID) (exists bool, usedByTicket bool, err error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Passenger, error)
-	GetPassengers(ctx context.Context, pagiantion dbutil.Pagination) ([]entity.Passenger, int, error)
+	GetPassengers(ctx context.Context, pagiantion dbutil.Pagination) ([]entity.Passenger, int, error, bool)
 }
 
 type passengerRepo struct {
@@ -48,7 +48,7 @@ func (p *passengerRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Passe
 	return p.ds.GetByID(ctx, id)
 }
 
-func (p *passengerRepo) GetPassengers(ctx context.Context, pagiantion dbutil.Pagination) ([]entity.Passenger, int, error) {
+func (p *passengerRepo) GetPassengers(ctx context.Context, pagiantion dbutil.Pagination) ([]entity.Passenger, int, error, bool) {
 	return p.ds.GetPassengers(ctx, pagiantion)
 }
 

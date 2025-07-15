@@ -36,6 +36,7 @@ func PossibleRawsAffectedError(result *gorm.DB, errType string) error {
 			"Non-existing Resourse Error",
 			"There is no Resourse assosiated with provided data.",
 		)
+
 	}
 
 	if result.Error != nil {
@@ -87,6 +88,24 @@ func PossibleForeignKeyError(result *gorm.DB, nonExistingParentErrType, nonExist
 	return defineError(result.Error, errType)
 }
 
+func ErrDuplicatedKey(result *gorm.DB, dublicateKeyErrorType, errType string) error {
+	if result.Error == nil {
+		return nil
+	}
+
+	if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+		return rfc7807.BadRequest(dublicateKeyErrorType, "Non-existing Resourse Error", "There is no resourse assosiated with provided data.")
+	} else if result.RowsAffected == 0 {
+		return rfc7807.BadRequest(
+			errType,
+			"Non-existing Resourse Error",
+			"There is no Resourse assosiated with provided data.",
+		)
+	}
+
+	return defineError(result.Error, errType)
+}
+
 func PossibleForeignKeyCreateError(result *gorm.DB, nonExistingParentErrType, errType string) error {
 	if result.Error == nil {
 		return nil
@@ -94,6 +113,18 @@ func PossibleForeignKeyCreateError(result *gorm.DB, nonExistingParentErrType, er
 
 	if errors.Is(result.Error, gorm.ErrForeignKeyViolated) {
 		return rfc7807.BadRequest(nonExistingParentErrType, "Non-existing Resourse Error", "There is no resourse assosiated with provided data.")
+	}
+
+	return defineError(result.Error, errType)
+}
+
+func PossibleCreateVaiolationError(result *gorm.DB, violationType, errType string) error {
+	if result.Error == nil {
+		return nil
+	}
+
+	if errors.Is(result.Error, gorm.ErrForeignKeyViolated) {
+		return rfc7807.BadRequest(violationType, "Constraint Violation Error", "One of the constraints has been violated.")
 	}
 
 	return defineError(result.Error, errType)
@@ -108,7 +139,7 @@ func PossibleCreateError(result *gorm.DB, errType string) error {
 
 func Preload(query *gorm.DB, preload ...string) *gorm.DB {
 	for _, v := range preload {
-		query.Preload(v)
+		query = query.Preload(v)
 	}
 	return query
 }

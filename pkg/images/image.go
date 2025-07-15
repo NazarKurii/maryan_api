@@ -1,6 +1,7 @@
 package images
 
 import (
+	"fmt"
 	"io"
 	"mime/multipart"
 	"os"
@@ -20,10 +21,14 @@ func Save(path string, image *multipart.FileHeader) error {
 
 	out, err := os.Create(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating file failed: %w", err)
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, src)
+	written, err := io.Copy(out, src)
+	if err != nil {
+		return fmt.Errorf("copying file data failed: %w", err)
+	}
+	fmt.Printf("Image saved at %s (%d bytes)\n", path, written)
 	return err
 }

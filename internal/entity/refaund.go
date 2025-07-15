@@ -7,8 +7,8 @@ import (
 )
 
 type Refaund struct {
-	ID          uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-	TicketID    uuid.UUID `gorm:"type:uuid;not null"   json:"-"`
+	ID          uuid.UUID `gorm:"type:binary(16);primaryKey" json:"id"`
+	TicketID    uuid.UUID `gorm:"type:binary(16);not null"   json:"-"`
 	Ticket      Ticket    `gorm:"foreignKey:TicketID"  json:"ticket"`
 	CreatedAt   time.Time `gorm:"not null"             json:"createdAt"`
 	CompletedAt time.Time `                            json:"completedAt"`

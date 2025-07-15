@@ -16,8 +16,6 @@ type userHandler struct {
 	service service.UserService
 }
 
-func mai() {}
-
 func (uh *userHandler) login(ctx *gin.Context) {
 	var credentials struct {
 		Email    string `json:"email" binding:"required"`

@@ -19,31 +19,39 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 
 	customerRouter.POST("/passenger", handler.CreatePassenger)
 	customerRouter.GET("/passenger/:id", handler.GetPassenger)
-	customerRouter.GET("/passengers/:page/:size/:order_by/:order_way", handler.GetPassengers)
+	customerRouter.GET("/passengers", handler.GetPassengers)
 	customerRouter.PUT("/passenger", handler.UpdatePassenger)
 	customerRouter.DELETE("/passenger/:id", handler.DeletePassenger)
 }
 
-var createPassengerLink = hypermedia.Link{
-	"createPassenger": {Href: "/passenger", Method: "POST"},
-}
+var (
+	createPassengerLink = hypermedia.Link{
+		Name: "createPassenger",
+		Data: hypermedia.LinkData{Href: "/passenger", Method: "POST"},
+	}
 
-var getPassengerLink = hypermedia.Link{
-	"getPassenger": {Href: "/passenger/:id", Method: "GET"},
-}
+	getPassengerLink = hypermedia.Link{
+		Name: "getPassenger",
+		Data: hypermedia.LinkData{Href: "/passenger/:id", Method: "GET"},
+	}
 
-var getPassengersLink = hypermedia.Link{
-	"getPassenger": {Href: "/passengers/:page/:size/:orderBy/:orderWay", Method: "GET"},
-}
+	getPassengersLink = hypermedia.Link{
+		Name: "getPassengers",
+		Data: hypermedia.LinkData{Href: "/passengers/:page/:size/:orderBy/:orderWay", Method: "GET"},
+	}
 
-var listPassengersLink = hypermedia.Link{
-	"listPassengers": {Href: "/passengers/:page/:size/:orderBy/:orderWay", Method: "GET"},
-}
+	listPassengersLink = hypermedia.Link{
+		Name: "listPassengers",
+		Data: hypermedia.LinkData{Href: "/passengers/:page/:size/:orderBy/:orderWay", Method: "GET"},
+	}
 
-var updatePassengerLink = hypermedia.Link{
-	"updatePassenger": {Href: "/passenger", Method: "PATCH"},
-}
+	updatePassengerLink = hypermedia.Link{
+		Name: "updatePassenger",
+		Data: hypermedia.LinkData{Href: "/passenger", Method: "PATCH"},
+	}
 
-var deletePassengerLink = hypermedia.Link{
-	"deletePassenger": {Href: "/passenger/:id", Method: "DELETE"},
-}
+	deletePassengerLink = hypermedia.Link{
+		Name: "deletePassenger",
+		Data: hypermedia.LinkData{Href: "/passenger/:id", Method: "DELETE"},
+	}
+)

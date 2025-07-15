@@ -15,11 +15,11 @@ type Bus interface {
 	RegistrationNumberExists(ctx context.Context, registrationNumber string) (bool, error)
 	Create(ctx context.Context, bus *entity.Bus) error
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, error)
-	GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, int, error)
+	GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, int, error, bool)
 	Delete(ctx context.Context, id uuid.UUID) error
 	ChangeLeadDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error
 	ChangeAssistantDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error
-	GetAvailable(ctx context.Context, dates []time.Time, pagination dbutil.Pagination) ([]entity.Bus, int, error)
+	GetAvailable(ctx context.Context, dates []time.Time, pagination dbutil.Pagination) ([]entity.Bus, int, error, bool)
 	SetSchedule(ctx context.Context, schedule []entity.BusAvailability) error
 	Exists(ctx context.Context, id uuid.UUID) (bool, error)
 }
@@ -33,7 +33,7 @@ type driverRepo struct {
 }
 
 func (d *driverRepo) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
-	return d.store.UserExists(ctx, id)
+	return d.store.Exists(ctx, id)
 }
 
 type busRepo struct {
@@ -48,7 +48,7 @@ func (b *busRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, error)
 	return b.store.GetByID(ctx, id)
 }
 
-func (b *busRepo) GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, int, error) {
+func (b *busRepo) GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, int, error, bool) {
 	return b.store.GetBuses(ctx, p)
 }
 
@@ -68,7 +68,7 @@ func (b *busRepo) ChangeAssistantDriver(ctx context.Context, busID uuid.UUID, dr
 	return b.store.ChangeAssistantDriver(ctx, busID, driverID)
 }
 
-func (b *busRepo) GetAvailable(ctx context.Context, dates []time.Time, pagination dbutil.Pagination) ([]entity.Bus, int, error) {
+func (b *busRepo) GetAvailable(ctx context.Context, dates []time.Time, pagination dbutil.Pagination) ([]entity.Bus, int, error, bool) {
 	return b.store.GetAvailable(ctx, dates, pagination)
 }
 

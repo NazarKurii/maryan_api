@@ -7,78 +7,102 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type API struct {
-	Key string
-	URL string
-}
-
+// LoadConfig loads the .env file
 func LoadConfig(path string) {
-	err := godotenv.Load(path)
-	if err != nil {
+	if err := godotenv.Load(path); err != nil {
 		log.Fatal("Could not load env: ", err.Error())
 	}
-
 }
 
-func APIURL() string {
-	url := os.Getenv("API_URL")
-	if url == "" {
-		panic("Could not load customer secret key")
+// mustGetEnv returns the environment variable value or panics if not set
+func mustGetEnv(key string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		panic("COULD NOT GET " + key)
 	}
-	return url
+	return val
+}
+
+// mustGetEnvBytes returns the environment variable as []byte or panics if not set
+func mustGetEnvBytes(key string) []byte {
+	return []byte(mustGetEnv(key))
+}
+
+// Your getters:
+func APIURL() string {
+	return mustGetEnv("API_URL")
 }
 
 func GuestCustomerSecretKey() []byte {
-	key := os.Getenv("GUEST_CUSTOMER_SECRET_KEY")
-	if key == "" {
-		panic("Could not load customer secret key")
-	}
-	return []byte(key)
+	return mustGetEnvBytes("GUEST_CUSTOMER_SECRET_KEY")
 }
 
 func CustomerSecretKey() []byte {
-	key := os.Getenv("CUSTOMER_SECRET_KEY")
-	if key == "" {
-		panic("Could not load customer secret key")
-	}
-	return []byte(key)
+	return mustGetEnvBytes("CUSTOMER_SECRET_KEY")
 }
 
-func AdminSecretKey() []byte {
-	key := os.Getenv("ADMIN_SECRET_KEY")
-	if key == "" {
-		panic("Could not load customer secret key")
-	}
-	return []byte(key)
-}
-
-func DriverSecretKey() []byte {
-	key := os.Getenv("DRIVER_SECRET_KEY")
-	if key == "" {
-		panic("Could not load customer secret key")
-	}
-	return []byte(key)
-}
-func SupportEmployeeSecretKey() []byte {
-	key := os.Getenv("SUPPORT_EMPLOYEE_SECRET_KEY")
-	if key == "" {
-		panic("Could not load customer secret key")
-	}
-	return []byte(key)
+func EmailCodeVerificationTokenSecretKey() []byte {
+	return mustGetEnvBytes("EMAIL_CODE_VERIFICATION_TOKEN_SECRET_KEY")
 }
 
 func EmailAccessTokenSecretKey() []byte {
-	key := os.Getenv("EMAIL_ACCESS_TOKEN_SECRET_KEY")
-	if key == "" {
-		panic("Could not load customer secret key")
-	}
-	return []byte(key)
+	return mustGetEnvBytes("EMAIL_ACCESS_TOKEN_SECRET_KEY")
+}
+
+func EmailChangePasswordCodeVerificationTokenSecretKey() []byte {
+	return mustGetEnvBytes("EMAIL_CHANGE_PASSWORD_CODE_VERIFICATION_TOKEN_SECRET_KEY")
+}
+
+func EmailChangePasswordAccessTokenSecretKey() []byte {
+	return mustGetEnvBytes("EMAIL_CHANGE_PASSWORD_ACCESS_TOKEN_SECRET_KEY")
+}
+
+func EmailCodeSecretKeyCustomerUpdate() []byte {
+	return mustGetEnvBytes("EMAIL_CODE_SECRET_KEY_CUSTOMER_UPDATE")
+}
+
+func SecretKeyCustomerUpdate() []byte {
+	return mustGetEnvBytes("SECRET_KEY_CUSTOMER_UPDATE")
+}
+
+func AdminSecretKey() []byte {
+	return mustGetEnvBytes("ADMIN_SECRET_KEY")
+}
+
+func DriverSecretKey() []byte {
+	return mustGetEnvBytes("DRIVER_SECRET_KEY")
+}
+
+func SupportEmployeeSecretKey() []byte {
+	return mustGetEnvBytes("SUPPORT_EMPLOYEE_SECRET_KEY")
 }
 
 func NumberAccessTokenSecretKey() []byte {
-	key := os.Getenv("NUMBER_ACCESS_TOKEN_SECRET_KEY")
-	if key == "" {
-		panic("Could not load customer secret key")
+	return mustGetEnvBytes("NUMBER_ACCESS_TOKEN_SECRET_KEY")
+}
+
+func StripSekretKey() string {
+	return mustGetEnv("STRIPE_SECRET_KEY")
+}
+
+type db struct {
+	User     string
+	Password string
+	Host     string
+	Name     string
+	Port     string
+}
+
+func DB() db {
+	return db{
+		User:     mustGetEnv("DB_USER"),
+		Password: mustGetEnv("DB_PASSWORD"),
+		Host:     mustGetEnv("DB_HOST"),
+		Name:     mustGetEnv("DB_NAME"),
+		Port:     mustGetEnv("DB_PORT"),
 	}
-	return []byte(key)
+}
+
+func FrontendURL() string {
+	return mustGetEnv("FRONTEND_URL")
 }

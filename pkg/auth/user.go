@@ -58,14 +58,14 @@ func (r SupportRole) GenerateToken(email string, id uuid.UUID) (string, error) {
 }
 
 func DefineRole(role string) (Role, error) {
-	switch role {
-	case Customer.Name():
+	switch {
+	case strings.EqualFold(role, Customer.Name()):
 		return Customer, nil
-	case Admin.Name():
+	case strings.EqualFold(role, Admin.Name()):
 		return Admin, nil
-	case Driver.Name():
+	case strings.EqualFold(role, Driver.Name()):
 		return Driver, nil
-	case Support.Name():
+	case strings.EqualFold(role, Support.Name()):
 		return Support, nil
 	default:
 		return nil, fmt.Errorf("unknown role: %s", role)
@@ -73,14 +73,17 @@ func DefineRole(role string) (Role, error) {
 }
 
 func SplitIntoRoles(rolesStr string) ([]string, error) {
-	roles := strings.Split(rolesStr, "+")
+	roles := strings.Split(rolesStr, ",")
+
 	for i, role := range roles {
-		role = strings.ToUpper(string(role[0])) + strings.ToLower(role[0:])
-		if _, err := DefineRole(role); err != nil {
-			return nil, rfc7807.BadRequest("non-existing-role", "Non-existing Role Error", "There is no role with provided name.")
+
+		if authRole, err := DefineRole(role); err != nil {
+			return nil, rfc7807.BadRequest("non-existing-role", "Non-existing Role Error", err.Error())
+		} else {
+
+			roles[i] = authRole.Name()
 		}
 
-		roles[i] = role
 	}
 
 	return roles, nil

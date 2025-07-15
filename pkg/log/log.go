@@ -2,7 +2,6 @@ package log
 
 import (
 	"encoding/json"
-	"fmt"
 	rfc7807 "maryan_api/pkg/problem"
 	"time"
 
@@ -17,7 +16,7 @@ type Logger interface {
 	GetID() string
 }
 type Log struct {
-	ID          uuid.UUID       `gorm:"type:uuid;primaryKey" json:"id"`
+	ID          uuid.UUID       `gorm:"type:binary(16);primaryKey" json:"id"`
 	Time        time.Time       `gorm:"autoCreateTime" json:"time"`
 	IP          string          `gorm:"type:varchar(39);not null" json:"ip"`
 	Route       string          `gorm:"type:varchar(255); not null" json:"route"`
@@ -38,15 +37,15 @@ func Migrate(db *gorm.DB) error {
 }
 
 func (l *Log) Do(db *gorm.DB) {
-	if err := db.Create(&l).Error; err != nil {
-		fmt.Printf(
-			`\n
-						...............LOGGING ERROR...................
-						%s
-						...............................................
-						\n
-					`, err.Error())
-	}
+	// if err := db.Create(&l).Error; err != nil {
+	// 	fmt.Printf(
+	// 		`\n
+	// 					...............LOGGING ERROR...................
+	// 					%s
+	// 					...............................................
+	// 					\n
+	// 				`, err.Error())
+	// }
 }
 
 func New(ip string, route string, queryParams, headers, body json.RawMessage, method string) Logger {

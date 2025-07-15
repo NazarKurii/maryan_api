@@ -31,17 +31,25 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 	authCustomerRouter := ginutil.CreateAuthRouter("/customer", customer.customerHandler.service.SecretKey(), s)
 	customerRouter := s.Group("/customer")
 
-	customerRouter.POST("/verify-email", customer.customerHandler.verifyEmail)
+	customerRouter.POST("/verify-email", customer.customerHandler.verifyEmailIfExists)
 	customerRouter.POST("/verify-email-code/:token", customer.customerHandler.verifyEmailCode)
 	customerRouter.POST("/verify-number", customer.customerHandler.verifyNumber)
 	customerRouter.POST("/verify-number-code/:token", customer.customerHandler.verifyNumberCode)
 	customerRouter.POST("/register", customer.customerHandler.register)
+	customerRouter.POST("/change-password/verify-email", customer.customerHandler.verifyEmailChangePassword)
+	customerRouter.POST("/change-password/verify-email-code/:token", customer.customerHandler.verifyEmailCodePasswordChanging)
+	customerRouter.POST("/change-password", customer.customerHandler.changePassword)
 
 	customerRouter.POST("/login", customer.customerHandler.login)
 	customerRouter.POST("/google-oauth", customer.customerHandler.googleOAUTH)
 
 	authCustomerRouter.POST("/login-jwt", customer.customerHandler.loginJWT)
 	authCustomerRouter.GET("", customer.customerHandler.get)
+	authCustomerRouter.PUT("/personal-info", customer.customerHandler.updatePersonalInfo)
+	authCustomerRouter.PUT("/contact-info", customer.customerHandler.updateContactInfo)
+
+	authCustomerRouter.POST("/verify-update", customer.customerHandler.verifyEmailCustomerUpdate)
+	authCustomerRouter.POST("/verify-update-code/:token", customer.customerHandler.VerifyCustomerUpdateCode)
 
 	authCustomerRouter.DELETE("", customer.customerHandler.delete)
 
@@ -52,6 +60,7 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 
 	adminRouter.POST("/login", admin.adminHandler.login)
 	adminRouter.POST("/hash-password", admin.adminHandler.hashPassword)
+	authAdminRouter.POST("/login-jwt", admin.adminHandler.loginJWT)
 	authAdminRouter.GET("/users", admin.adminHandler.getUsers)
 	authAdminRouter.GET("/user", admin.adminHandler.getUser)
 	authAdminRouter.GET("", admin.adminHandler.get)
@@ -60,6 +69,7 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 	authAdminRouter.POST("/admin", admin.adminHandler.newEmployee(auth.Admin))
 	authAdminRouter.POST("/employee-schedule", admin.adminHandler.setEmployeeAvailability)
 	authAdminRouter.GET("/available-employees", admin.adminHandler.getAvailableEmployees)
+	authAdminRouter.GET("/free-drivers", admin.adminHandler.getFreeDrivers)
 
 	//ADMIN ROUTES
 	driver := Driver{newUserHandler(service.NewUserService(auth.Driver, repo.NewUserRepo(db)))}
@@ -71,46 +81,57 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 
 var (
 	guestLink = hypermedia.Link{
-		"create": {Href: "/customer/guest", Method: "POST"},
+		Name: "guest",
+		Data: hypermedia.LinkData{Href: "/customer/guest", Method: "POST"},
 	}
 
 	verifyEmailLink = hypermedia.Link{
-		"verifyEmail": {Href: "/customer/verify-email", Method: "POST"},
+		Name: "verifyEmail",
+		Data: hypermedia.LinkData{Href: "/customer/verify-email", Method: "POST"},
 	}
 
 	verifyNumberLink = hypermedia.Link{
-		"verifyPhoneNumber": {Href: "/customer/verify-number", Method: "POST"},
+		Name: "verifyPhoneNumber",
+		Data: hypermedia.LinkData{Href: "/customer/verify-number", Method: "POST"},
 	}
 
 	verifyNumberCodeLink = hypermedia.Link{
-		"codeVerification": {Href: "/customer/code-verification", Method: "POST"},
+		Name: "codeVerification",
+		Data: hypermedia.LinkData{Href: "/customer/code-verification", Method: "POST"},
 	}
 
 	googleOAuthLink = hypermedia.Link{
-		"loginOAuth": {Href: "/customer/google-oauth", Method: "POST"},
+		Name: "loginOAuth",
+		Data: hypermedia.LinkData{Href: "/customer/google-oauth", Method: "POST"},
 	}
 
 	getUserLink = hypermedia.Link{
-		"self": {Href: "/customer/user", Method: "GET"},
+		Name: "self",
+		Data: hypermedia.LinkData{Href: "/customer/user", Method: "GET"},
 	}
 
 	registerUserLink = hypermedia.Link{
-		"register": {Href: "/customer/user", Method: "POST"},
+		Name: "register",
+		Data: hypermedia.LinkData{Href: "/customer/user", Method: "POST"},
 	}
 
 	deleteUserLink = hypermedia.Link{
-		"delete": {Href: "/customer/user", Method: "DELETE"},
+		Name: "delete",
+		Data: hypermedia.LinkData{Href: "/customer/user", Method: "DELETE"},
 	}
 
 	loginLink = hypermedia.Link{
-		"login": {Href: "/customer/login", Method: "POST"},
+		Name: "login",
+		Data: hypermedia.LinkData{Href: "/customer/login", Method: "POST"},
 	}
 
 	loginJWTLink = hypermedia.Link{
-		"loginJWT": {Href: "/customer/login-jwt", Method: "POST"},
+		Name: "loginJWT",
+		Data: hypermedia.LinkData{Href: "/customer/login-jwt", Method: "POST"},
 	}
 
-	getUsers = hypermedia.Link{
-		"createDriver": {Href: "/admin/users", Method: "GET"},
+	getUsersLink = hypermedia.Link{
+		Name: "createDriver",
+		Data: hypermedia.LinkData{Href: "/admin/users", Method: "GET"},
 	}
 )

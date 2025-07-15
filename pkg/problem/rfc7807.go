@@ -128,4 +128,12 @@ func UUID(detail string) error {
 	return BadRequest("invalid-id-format", "Invalid ID Format", detail)
 }
 
+func JSON(detail string) Problem {
+	return BadRequest(
+		"request-parsing",
+		"Request Parsing Error",
+		detail,
+	)
+}
+
 type Extensions map[string]any

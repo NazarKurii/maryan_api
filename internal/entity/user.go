@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"maryan_api/config"
 	"maryan_api/pkg/auth"
@@ -22,19 +23,65 @@ import (
 
 // USER
 type User struct {
-	ID          uuid.UUID      `gorm:"type:uuid;primaryKey"                                              json:"id"`
+	ID          uuid.UUID      `gorm:"type:binary(16);primaryKey"                                              json:"id"`
 	FirstName   string         `gorm:"type:varchar(50);not null"                                         json:"firstName"`
 	LastName    string         `gorm:"type:varchar(50);not null"                                         json:"lastName"`
 	DateOfBirth time.Time      `gorm:"type:DATE;not null"                                                json:"dateOfBirth"`
-	PhoneNumber string         `gorm:"type:varchar(15);not null"                                         json:"phoneNumber"`
+	PhoneNumber string         `gorm:"type:varchar(15)"                                                  json:"phoneNumber"`
 	Email       string         `gorm:"type:varchar(255);not null;unique; index"                          json:"email"`
 	Password    string         `gorm:"type:varchar(255);not null"                                        json:"password"`
 	ImageUrl    string         `gorm:"type:varchar(255);not null"                                        json:"imageUrl"`
-	Sex         userSex        `gorm:"type:enum('Female','Male');not null"                               json:"sex"`
-	Role        userRole       `gorm:"type:enum('Customer','Admin','Driver','Support');not null"         json:"role"`
+	Role        userRole       `gorm:"type:enum('Customer','Admin','Driver','Support');not null"         json:"-"`
 	CreatedAt   time.Time      `gorm:"not null"                                                          json:"createdAt"`
 	UpdatedAt   time.Time      `gorm:"not null"                                                          json:"updatedAt"`
 	DeletedAt   gorm.DeletedAt `                                                                         json:"deletedAt"`
+}
+
+func (u *User) AfterFind(tx *gorm.DB) (err error) {
+
+	return
+}
+
+type UserPersonalInfo struct {
+	FirstName   string
+	LastName    string
+	DateOfBirth string
+}
+
+func (u UserPersonalInfo) Validate() rfc7807.InvalidParams {
+	var params rfc7807.InvalidParams
+
+	if len(u.FirstName) < 1 {
+		params.SetInvalidParam("firstName", "Cannot be blank.")
+	}
+
+	if len(u.LastName) < 1 {
+		params.SetInvalidParam("lastName", "Cannot be blank.")
+	}
+
+	return params
+}
+
+type UserContactInfo struct {
+	PhoneNumber string `json:"phoneNumber"`
+	Email       string `json:"email"`
+}
+
+func (u UserContactInfo) Prepare() rfc7807.InvalidParams {
+	var params rfc7807.InvalidParams
+
+	if !govalidator.IsEmail(u.Email) {
+		params.SetInvalidParam("email", "Contains invalid characters or is not an email.")
+	}
+
+	phoneNumber, err := fomratPhoneNumber(u.PhoneNumber)
+	if err != nil {
+		params.SetInvalidParam("phoneNumber", err.Error())
+	}
+
+	u.PhoneNumber = phoneNumber
+
+	return params
 }
 
 // USER -> ROLE
@@ -99,17 +146,17 @@ func sexImage(sex string) (string, error) {
 // ************************************* //
 // USER HELPING METHODS FOR THE SERVICE //
 // ************************************* //
-func (u *User) fomratPhoneNumber() error {
-	pn, err := phonenumbers.Parse(u.PhoneNumber, "UA")
+func fomratPhoneNumber(phoneNumber string) (string, error) {
+	pn, err := phonenumbers.Parse(phoneNumber, "UA")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if !phonenumbers.IsValidNumber(pn) {
-		return errors.New("invalid phone number")
+		return "", errors.New("invalid phone number")
 	}
-	u.PhoneNumber = phonenumbers.Format(pn, phonenumbers.E164)
-	return nil
+
+	return phonenumbers.Format(pn, phonenumbers.E164), nil
 }
 
 func (u *User) Validate() rfc7807.InvalidParams {
@@ -123,12 +170,10 @@ func (u *User) Validate() rfc7807.InvalidParams {
 		params.SetInvalidParam("lastName", "Cannot be blank.")
 	}
 
-	if u.Sex != maleSex && u.Sex != femaleSex {
-		params.SetInvalidParam("sex", fmt.Sprintf("Can only be 'Male' or 'Female', got '%s'.", u.Sex))
-	}
-
 	if u.DateOfBirth.Before(time.Now().AddDate(-125, 0, 0)) {
-		params.SetInvalidParam("dateOfBirth", "Has to be greater or equal to 18.")
+		params.SetInvalidParam("dateOfBirth", "Has to be younger than 125 years old.")
+	} else if u.DateOfBirth.After(time.Now().AddDate(-18, 0, 0)) {
+		params.SetInvalidParam("dateOfBirth", "Has to be at least 18 years old.")
 	}
 
 	if !govalidator.IsEmail(u.Email) {
@@ -152,20 +197,29 @@ func (u *User) Validate() rfc7807.InvalidParams {
 
 func (u *User) PrepareNew() rfc7807.InvalidParams {
 	invalidParams := u.Validate()
+
+	phoneNumber, err := fomratPhoneNumber(u.PhoneNumber)
+	if err != nil {
+		invalidParams.SetInvalidParam("phoneNumber", err.Error())
+	}
+	u.PhoneNumber = phoneNumber
+
 	if invalidParams == nil {
 		u.ID = uuid.New()
 	}
+
 	return invalidParams
 }
 
-func (u *User) PrepareNewEmployee(firstWorkingDay time.Time) ([]EmployeeAvailability, error) {
-	params := u.Validate()
-	u.PrepareNew()
+func (u *User) PrepareNewEmployee(firstWorkingDay time.Time) ([]EmployeeAvailability, rfc7807.InvalidParams) {
+
+	params := u.PrepareNew()
 
 	now := time.Now()
 
 	if firstWorkingDay.Before(now) {
-		params.SetInvalidParam("firstWorkingDay", "Invalid first working day date.")
+		params.SetInvalidParam("starts", "Is in past.")
+		return nil, params
 	}
 
 	datesAmount := int(firstWorkingDay.Sub(now).Hours() / 24)
@@ -180,19 +234,15 @@ func (u *User) PrepareNewEmployee(firstWorkingDay time.Time) ([]EmployeeAvailabi
 		}
 	}
 
-	return employeeAvailabilityDates, rfc7807.BadRequest(
-		"user-credentials-validation",
-		"user Credentials Error",
-		"Could not save the user due to invalid credentials.",
-		params...,
-	)
+	return employeeAvailabilityDates, nil
 }
 
 type EmployeeAvailability struct {
-	UserID  uuid.UUID                  `gorm:"type:uuid; not null"                                                  json:"id"`
-	Status  employeeAvailabilityStatus `gorm:"type:enum('Unavailable','Sick','Other','Busy'); not null"             json:"status"`
-	Date    time.Time                  `gorm:"not null;default:CURRENT_TIME_STAMP"                                  json:"date"`
-	Comment string                     `gorm:"type:varchar(500)"                                                    json:"comment;omitempty"`
+	UserID uuid.UUID                  `gorm:"type:binary(16); not null"                                                  json:"id"`
+	Status employeeAvailabilityStatus `gorm:"type:enum('Unavailable','Sick','Other','Busy'); not null"             json:"status"`
+	Date   time.Time                  `gorm:"type:datetime(3);not null;default:CURRENT_TIMESTAMP(3)" json:"date" json:"date"`
+
+	Comment string `gorm:"type:varchar(500)"                                                    json:"comment;omitempty"`
 }
 
 type employeeAvailabilityStatus string
@@ -236,14 +286,14 @@ func MigrateUser(db *gorm.DB) error {
 
 // ----------------strcuct-manipulations------------------
 type UserSimplified struct {
-	ID          uuid.UUID `json:"id"`
-	FirstName   string    `json:"firstName"`
-	LastName    string    `json:"lastName"`
-	DateOfBirth time.Time `json:"dateOfBirth"`
-	PhoneNumber string    `json:"phoneNumber"`
-	Email       string    `json:"email"`
-	ImageUrl    string    `json:"imageUrl"`
-	Sex         string    `json:"sex"`
+	ID          uuid.UUID `json:"id" form:"id"`
+	FirstName   string    `json:"firstName" form:"firstName"`
+	LastName    string    `json:"lastName" form:"lastName"`
+	DateOfBirth string    `json:"dateOfBirth" form:"dateOfBirth"`
+	PhoneNumber string    `json:"phoneNumber" form:"phoneNumber"`
+	Email       string    `json:"email" form:"email"`
+	ImageUrl    string    `json:"imageUrl" form:"imageUrl"`
+	Sex         string    `json:"sex" form:"sex"`
 }
 
 func (user User) Simplify() UserSimplified {
@@ -251,7 +301,7 @@ func (user User) Simplify() UserSimplified {
 		ID:          user.ID,
 		FirstName:   user.FirstName,
 		LastName:    user.LastName,
-		DateOfBirth: user.DateOfBirth,
+		DateOfBirth: user.DateOfBirth.Format("2006-01-02"),
 		PhoneNumber: user.PhoneNumber,
 		Email:       user.Email,
 		ImageUrl:    user.ImageUrl,
@@ -268,52 +318,87 @@ func SimplifyUsers(users []User) []UserSimplified {
 
 type RegistrantionUser struct {
 	UserSimplified
-	Password string `json:"password"`
+	Password string `json:"password" form:"password"`
 }
 
 type RegistrantionEmployee struct {
 	RegistrantionUser
-	Starts time.Time `json:"starts"`
+	Starts string `json:"starts" form:"starts"`
 }
 
 func (ru RegistrantionUser) ToUser(role auth.Role) User {
+	var params rfc7807.InvalidParams
+
+	dateOfBirth, err := time.Parse("2006-01-02", ru.DateOfBirth)
+	if err != nil {
+		params.SetInvalidParam("dateOfBirth", err.Error())
+	}
+
 	return User{
 		ID:          ru.ID,
 		FirstName:   ru.FirstName,
 		LastName:    ru.LastName,
-		DateOfBirth: ru.DateOfBirth,
+		DateOfBirth: dateOfBirth,
 		PhoneNumber: ru.PhoneNumber,
 		Email:       ru.Email,
 		ImageUrl:    ru.ImageUrl,
 		Role:        userRole{role},
-		Sex:         userSex(ru.Sex),
 		Password:    ru.Password,
 	}
 }
 
-func (re RegistrantionEmployee) ToUser(role auth.Role) (User, time.Time) {
+func (re RegistrantionEmployee) ToUser(role auth.Role) (User, time.Time, rfc7807.InvalidParams) {
+	var params rfc7807.InvalidParams
+
+	dateOfBirth, err := time.Parse("2006-01-02", re.DateOfBirth)
+	if err != nil {
+		params.SetInvalidParam("dateOfBirth", err.Error())
+	}
+
+	starts, err := time.Parse("2006-01-02", re.Starts)
+	if err != nil {
+		params.SetInvalidParam("starts", err.Error())
+	}
+
 	return User{
 		ID:          re.ID,
 		FirstName:   re.FirstName,
 		LastName:    re.LastName,
-		DateOfBirth: re.DateOfBirth,
+		DateOfBirth: dateOfBirth,
 		PhoneNumber: re.PhoneNumber,
 		Email:       re.Email,
 		ImageUrl:    re.ImageUrl,
 		Role:        userRole{role},
-		Sex:         userSex(re.Sex),
 		Password:    re.Password,
-	}, re.Starts
+	}, starts, params
 }
 
-func NewForGoogleOAUTH(email, name, surname string) User {
+func NewForGoogleOAUTH(email, firstName, lastName string, dateOfBirth time.Time) User {
 	return User{
 		ID:          uuid.New(),
 		Email:       email,
-		FirstName:   name,
-		LastName:    surname,
-		DateOfBirth: time.Now().UTC().AddDate(-25, 0, 0),
-		ImageUrl:    "https://example.com/default-guest-avatar.png",
+		FirstName:   firstName,
+		LastName:    lastName,
+		DateOfBirth: dateOfBirth,
+		ImageUrl:    config.APIURL() + "/imgs/guest-female.png",
 		Role:        userRole{auth.Customer},
 	}
+}
+
+func ValidatePassword(password string) error {
+	if len(password) < 6 {
+		return errors.New("password must be at least 6 characters long")
+	}
+
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	if !hasUpper {
+		return errors.New("password must contain at least one uppercase letter")
+	}
+
+	hasDigit := regexp.MustCompile(`\d`).MatchString(password)
+	if !hasDigit {
+		return errors.New("password must contain at least one digit")
+	}
+
+	return nil
 }

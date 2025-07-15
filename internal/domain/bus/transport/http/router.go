@@ -16,7 +16,7 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 	adminRouter := ginutil.CreateAuthRouter("/admin", auth.Admin.SecretKey(), s)
 	handler := newBusHandler(service.NewBusService(repo.NewBusRepo(db), repo.NewDriverRepo(db)))
 
-	//-----------------------BusRoutes------------------------------------
+	//-----------------------Bus Routes------------------------------------
 	adminRouter.POST("/bus", handler.createBus)
 	adminRouter.GET("/bus/:id", handler.getBus)
 	adminRouter.GET("/buses", handler.getBuses)
@@ -28,14 +28,19 @@ func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
 }
 
 // -------------Links-----------------
-var createBusLink = hypermedia.Link{
-	"createBus": {Href: "/bus", Method: "POST"},
-}
+var (
+	createBusLink = hypermedia.Link{
+		Name: "createBus",
+		Data: hypermedia.LinkData{Href: "/bus", Method: "POST"},
+	}
 
-var listBusesLink = hypermedia.Link{
-	"listBuses": {Href: "/bus", Method: "GET"},
-}
+	listBusesLink = hypermedia.Link{
+		Name: "listBuses",
+		Data: hypermedia.LinkData{Href: "/bus", Method: "GET"},
+	}
 
-var deleteBusLink = hypermedia.Link{
-	"deleteBus": {Href: "/bus", Method: "DELETE"},
-}
+	deleteBusLink = hypermedia.Link{
+		Name: "deleteBus",
+		Data: hypermedia.LinkData{Href: "/bus", Method: "DELETE"},
+	}
+)

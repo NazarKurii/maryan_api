@@ -46,8 +46,8 @@ func (p *passengerHandler) CreatePassenger(ctx *gin.Context) {
 		"The passenger has successfuly been created.",
 		hypermedia.Links{
 			hypermedia.Link{
-				"self": hypermedia.Href{
-					config.APIURL() + "/customer/passenger/" + id.String(),
+				"self", hypermedia.LinkData{
+					config.APIURL() + "/passenger/" + id.String(),
 					"GET",
 				},
 			},
@@ -89,10 +89,10 @@ func (p *passengerHandler) GetPassengers(ctx *gin.Context) {
 	defer cancel()
 	passengers, links, err := p.service.GetPassengers(ctxWithTimeout, dbutil.PaginationStr{
 		"customer/passengers",
-		ctx.DefaultQuery("page", "0"),
+		ctx.DefaultQuery("page", "1"),
 		ctx.DefaultQuery("size", "20"),
-		ctx.DefaultQuery("order_by", ""),
-		ctx.DefaultQuery("order_way", "ASC"),
+		ctx.DefaultQuery("order_by", "created_at"),
+		ctx.DefaultQuery("order_way", "desc"),
 		ctx.DefaultQuery("search", ""),
 	}, ctx.MustGet("userID").(uuid.UUID))
 
@@ -111,7 +111,7 @@ func (p *passengerHandler) GetPassengers(ctx *gin.Context) {
 			hypermedia.Links{
 				deletePassengerLink,
 				updatePassengerLink,
-				getPassengerLink,
+				getPassengersLink,
 			},
 		},
 		links,
@@ -145,7 +145,7 @@ func (p *passengerHandler) UpdatePassenger(ctx *gin.Context) {
 		"The passenger has successfuly been updated.",
 		hypermedia.Links{
 			hypermedia.Link{
-				"self": hypermedia.Href{
+				"self", hypermedia.LinkData{
 					config.APIURL() + "/passenger/" + id.String(),
 					"GET",
 				},
@@ -153,8 +153,7 @@ func (p *passengerHandler) UpdatePassenger(ctx *gin.Context) {
 			deletePassengerLink,
 			updatePassengerLink,
 			getPassengersLink,
-		},
-	})
+		}})
 }
 
 func (p *passengerHandler) DeletePassenger(ctx *gin.Context) {
@@ -171,8 +170,10 @@ func (p *passengerHandler) DeletePassenger(ctx *gin.Context) {
 		ginutil.Response{
 			"The passenger has successfuly been deleted.",
 			hypermedia.Links{
-				createPassengerLink,
+				deletePassengerLink,
+				updatePassengerLink,
 				getPassengersLink,
+				createPassengerLink,
 			},
 		},
 	)

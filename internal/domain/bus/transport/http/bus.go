@@ -139,7 +139,7 @@ func (b *busHandler) createBus(ctx *gin.Context) {
 	}
 
 	jsonBus := ctx.PostForm("bus")
-	var bus entity.Bus
+	var bus entity.NewBus
 	if err := json.Unmarshal([]byte(jsonBus), &bus); err != nil {
 		ginutil.HandlerProblemAbort(ctx, rfc7807.BadRequest(
 			"body-parsing-error",
@@ -152,7 +152,7 @@ func (b *busHandler) createBus(ctx *gin.Context) {
 	ctxWithTimeout, cancel := ginutil.ContextWithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	id, err := b.service.Create(ctxWithTimeout, bus, images)
+	id, err := b.service.Create(ctxWithTimeout, bus, images, ctx.SaveUploadedFile)
 	if err != nil {
 		ginutil.ServiceErrorAbort(ctx, err)
 		return
@@ -161,7 +161,12 @@ func (b *busHandler) createBus(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, ginutil.Response{
 		"The bus has successfuly been created",
 		hypermedia.Links{
-			hypermedia.Link{"self": hypermedia.Href{config.APIURL() + "/admin/bus/" + id.String(), http.MethodGet}},
+			hypermedia.Link{
+				"self", hypermedia.LinkData{
+					config.APIURL() + "/admin/bus/" + id.String(),
+					"GET",
+				},
+			},
 			deleteBusLink,
 		},
 	})
@@ -180,7 +185,7 @@ func (b *busHandler) getBus(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusFound, struct {
 		ginutil.Response
-		Bus entity.Bus `json:"bus"`
+		Bus entity.EmployeeBus `json:"bus"`
 	}{
 		ginutil.Response{
 			"The bus has successfuly been found",
@@ -200,7 +205,7 @@ func (b *busHandler) getBuses(ctx *gin.Context) {
 		"admin/buses",
 		ctx.DefaultQuery("page", "1"),
 		ctx.DefaultQuery("size", "10"),
-		ctx.DefaultQuery("order_by", ""),
+		ctx.DefaultQuery("order_by", "created_at"),
 		ctx.DefaultQuery("order_way", "ASC"),
 		ctx.DefaultQuery("search", ""),
 	})
@@ -210,19 +215,15 @@ func (b *busHandler) getBuses(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusFound, struct {
+	ctx.JSON(http.StatusOK, struct {
 		ginutil.Response
-		Buses []entity.Bus     `json:"buses"`
-		Urls  hypermedia.Links `json:"urls"`
+		Buses []entity.Bus `json:"buses"`
 	}{
 		ginutil.Response{
 			"The buses have successfuly been found",
-			hypermedia.Links{
-				deleteBusLink,
-			},
+			urls,
 		},
 		buses,
-		urls,
 	})
 }
 

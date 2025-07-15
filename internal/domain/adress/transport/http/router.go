@@ -13,39 +13,47 @@ import (
 )
 
 func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
-	handler := newAdressHandler(service.NewAdressService(repo.NewPassengerRepo(db), client))
+	handler := newAddressHandler(service.NewAddressService(repo.NewAddressRepo(db), client))
 
 	customerRouter := ginutil.CreateAuthRouter("/customer", auth.Customer.SecretKey(), s)
 
 	//--------------------PassengerRoutes---------------------------------
 
-	customerRouter.POST("/passenger", handler.CreateAdress)
-	customerRouter.GET("/passenger/:id", handler.GetAdress)
-	customerRouter.GET("/passengers", handler.GetAdress)
-	customerRouter.PUT("/passenger", handler.UpdateAdress)
-	customerRouter.DELETE("/passenger/:id", handler.DeleteAdress)
+	// customerRouter.POST("/Address", handler.CreateAddress)
+	customerRouter.GET("/Address/:id", handler.GetAddress)
+	customerRouter.GET("/Addresses", handler.GetAddresses)
+	customerRouter.PUT("/Address", handler.UpdateAddress)
+	customerRouter.DELETE("/Address/:id", handler.DeleteAddress)
 }
 
-var createAddressLink = hypermedia.Link{
-	"createAddress": {Href: "/customer/address", Method: "POST"},
-}
+var (
+	createAddressLink = hypermedia.Link{
+		Name: "createAddress",
+		Data: hypermedia.LinkData{Href: "/customer/address", Method: "POST"},
+	}
 
-var getAddressLink = hypermedia.Link{
-	"getAddress": {Href: "/customer/address/:id", Method: "GET"},
-}
+	getAddressLink = hypermedia.Link{
+		Name: "getAddress",
+		Data: hypermedia.LinkData{Href: "/customer/address/:id", Method: "GET"},
+	}
 
-var getAddressesLink = hypermedia.Link{
-	"getAddress": {Href: "/customer/addresses/:page/:size/:orderBy/:orderWay", Method: "GET"},
-}
+	getAddressesLink = hypermedia.Link{
+		Name: "getAddresses",
+		Data: hypermedia.LinkData{Href: "/customer/addresses/:page/:size/:orderBy/:orderWay", Method: "GET"},
+	}
 
-var listAddressesLink = hypermedia.Link{
-	"listAddresses": {Href: "/customer/addresses/:page/:size/:orderBy/:orderWay", Method: "GET"},
-}
+	listAddressesLink = hypermedia.Link{
+		Name: "listAddresses",
+		Data: hypermedia.LinkData{Href: "/customer/addresses/:page/:size/:orderBy/:orderWay", Method: "GET"},
+	}
 
-var updateAddressLink = hypermedia.Link{
-	"updateAddress": {Href: "/customer/address", Method: "PATCH"},
-}
+	updateAddressLink = hypermedia.Link{
+		Name: "updateAddress",
+		Data: hypermedia.LinkData{Href: "/customer/address", Method: "PATCH"},
+	}
 
-var deleteAddressLink = hypermedia.Link{
-	"deleteAddress": {Href: "/customer/address/:id", Method: "DELETE"},
-}
+	deleteAddressLink = hypermedia.Link{
+		Name: "deleteAddress",
+		Data: hypermedia.LinkData{Href: "/customer/address/:id", Method: "DELETE"},
+	}
+)

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func FromTo(from, to time.Time) []time.Time {
+func DatesBetween(from, to time.Time) []time.Time {
 	daysAmount := int(math.Ceil(to.Sub(from).Hours() / 24))
 
 	var dates = make([]time.Time, daysAmount)

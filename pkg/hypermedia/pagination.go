@@ -18,7 +18,7 @@ func (dp DefaultParam) IsDefault() bool {
 }
 
 func Pagination(pagination dbutil.PaginationStr, total int, params ...DefaultParam) Links {
-	var links = make(Links, total)
+	var links = make(Links, 0, total)
 	base := fmt.Sprintf(
 		"%s%s?size=%s&order_by=%s&order_way=%s",
 		config.APIURL(), pagination.Path, pagination.Size, pagination.OrderBy, pagination.OrderWay,
@@ -31,16 +31,15 @@ func Pagination(pagination dbutil.PaginationStr, total int, params ...DefaultPar
 	for page := 1; page <= total; page++ {
 		pageString := strconv.Itoa(page)
 
-		var url = base + "page=" + pageString
+		var url = base + "&page=" + pageString
 
-		for i, param := range params {
-			if i != 0 {
-				url += "&"
-			}
-			url += param.Name + "=" + param.Value
+		for _, param := range params {
+
+			url += "&" + param.Name + "=" + param.Value
 		}
 
-		links[page-1] = Link{pageString: Href{url, "GET"}}
+		links.Add(Link{strconv.Itoa(page - 1), LinkData{url, "GET"}})
 	}
+
 	return links
 }

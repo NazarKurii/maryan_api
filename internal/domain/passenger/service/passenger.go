@@ -108,13 +108,13 @@ func (p *passengerServiceImpl) GetPassenger(ctx context.Context, idStr string) (
 }
 
 func (p *passengerServiceImpl) GetPassengers(ctx context.Context, paginationStr dbutil.PaginationStr, userID uuid.UUID) ([]entity.Passenger, hypermedia.Links, error) {
-	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"user_id IN ?", []any{userID}}, []string{"surname, name, date_of_birth"}, "surname", "name", "date_of_birth")
+	pagination, err := paginationStr.ParseWithCondition(dbutil.Condition{"user_id = ?", []any{userID}}, []string{"surname, name, date_of_birth"}, "surname", "name", "date_of_birth", "created_at")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	passengers, total, err := p.repo.GetPassengers(ctx, pagination)
-	if err != nil {
+	passengers, total, err, empty := p.repo.GetPassengers(ctx, pagination)
+	if err != nil && empty {
 		return nil, nil, err
 	}
 

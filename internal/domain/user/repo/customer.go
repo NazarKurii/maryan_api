@@ -5,6 +5,7 @@ import (
 	"maryan_api/internal/entity"
 	dataStore "maryan_api/internal/infrastructure/persistence"
 	objectvalue "maryan_api/internal/valueobject"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -24,6 +25,10 @@ type CustomerRepo interface {
 	StartNumberVerification(ctx context.Context, session objectvalue.NumberVerificationSession) (uuid.UUID, error)
 	NumberVerificationSession(ctx context.Context, sessionID uuid.UUID) (objectvalue.NumberVerificationSession, error)
 	CompleteNumberVerification(ctx context.Context, sessionID uuid.UUID) error
+	ChangePassword(ctx context.Context, newPassword string, email string) error
+
+	UpdatePersonalInfo(ctx context.Context, firstName, lastName string, dateOfBirth time.Time, id uuid.UUID) error
+	UpdateContactInfo(ctx context.Context, email, phoneNumber string, id uuid.UUID) error
 }
 
 // MySQL implementation of CustomerRepo
@@ -62,6 +67,18 @@ func (cr *customerRepo) NumberVerificationSession(ctx context.Context, sessionID
 
 func (cr *customerRepo) CompleteNumberVerification(ctx context.Context, sessionID uuid.UUID) error {
 	return cr.store.CompleteNumberVerification(ctx, sessionID)
+}
+
+func (cr *customerRepo) ChangePassword(ctx context.Context, newPassword string, email string) error {
+	return cr.store.ChangePassword(ctx, newPassword, email)
+}
+
+func (cr *customerRepo) UpdatePersonalInfo(ctx context.Context, firstName, lastName string, dateOfBirth time.Time, id uuid.UUID) error {
+	return cr.store.UpdatePersonalInfo(ctx, firstName, lastName, dateOfBirth, id)
+}
+
+func (cr *customerRepo) UpdateContactInfo(ctx context.Context, email, phoneNumber string, id uuid.UUID) error {
+	return cr.store.UpdateContantInfo(ctx, email, phoneNumber, id)
 }
 
 // Constructor function

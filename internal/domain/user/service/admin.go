@@ -9,8 +9,8 @@ import (
 	"maryan_api/pkg/auth"
 	"maryan_api/pkg/dbutil"
 	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/images"
 	"maryan_api/pkg/timeutil"
+	"path/filepath"
 	"slices"
 	"time"
 
@@ -23,11 +23,12 @@ import (
 
 type AdminService interface {
 	UserService
-	NewEmployee(ctx context.Context, ru entity.RegistrantionEmployee, image *multipart.FileHeader, role auth.Role) (string, error)
+	NewEmployee(ctx context.Context, ru entity.RegistrantionEmployee, image *multipart.FileHeader, saveImageFunc func(file *multipart.FileHeader, dst string) error, role auth.Role) error
 	GetUsers(ctx context.Context, paginationStr dbutil.PaginationStr, rolesStr string) ([]entity.UserSimplified, hypermedia.Links, error)
 	SetEmployeeAvailability(ctx context.Context, availability []entity.EmployeeAvailability) error
 	GetUserByID(ctx context.Context, id string) (entity.User, error)
 	GetAvailableEmployees(ctx context.Context, paginationStr dbutil.PaginationStr, rolesStr, from, to string) ([]entity.UserSimplified, hypermedia.Links, error)
+	GetFreeDrivers(ctx context.Context, paginationStr dbutil.PaginationStr) ([]entity.UserSimplified, hypermedia.Links, error)
 }
 
 type adminServiceImpl struct {
@@ -68,8 +69,8 @@ func (as adminServiceImpl) GetAvailableEmployees(ctx context.Context, pagination
 		return nil, nil, rfc7807.BadRequest("invalid-to-time", "Invalid To Time Error", err.Error())
 	}
 
-	customers, total, err := as.repo.GetAvailableUsers(ctx, timeutil.FromTo(from, to), pagination)
-	if err != nil {
+	customers, total, err, empty := as.repo.GetAvailableUsers(ctx, timeutil.DatesBetween(from, to), pagination)
+	if err != nil || empty {
 		return nil, nil, err
 	}
 
@@ -88,7 +89,31 @@ func (as adminServiceImpl) GetAvailableEmployees(ctx context.Context, pagination
 	}), nil
 }
 
+func (as adminServiceImpl) GetFreeDrivers(ctx context.Context, paginationStr dbutil.PaginationStr) ([]entity.UserSimplified, hypermedia.Links, error) {
+
+	pagination, err := paginationStr.ParseWithCondition(
+		dbutil.Condition{
+			Where:  "role = ? AND buses.id IS NULL",
+			Values: []any{"Driver"},
+		},
+		[]string{"first_name", "last_name", "email", "phone_number"},
+		"first_name", "last_name", "email", "date_of_birth",
+	)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	customers, total, err, empty := as.repo.GetFreeDrivers(ctx, pagination)
+	if err != nil || empty {
+		return nil, nil, err
+	}
+
+	return entity.SimplifyUsers(customers), hypermedia.Pagination(paginationStr, total), nil
+}
+
 func (as adminServiceImpl) GetUsers(ctx context.Context, paginationStr dbutil.PaginationStr, rolesStr string) ([]entity.UserSimplified, hypermedia.Links, error) {
+
 	roles, err := auth.SplitIntoRoles(rolesStr)
 	if err != nil {
 		return nil, nil, err
@@ -96,7 +121,7 @@ func (as adminServiceImpl) GetUsers(ctx context.Context, paginationStr dbutil.Pa
 
 	pagination, err := paginationStr.ParseWithCondition(
 		dbutil.Condition{
-			Where:  "role = IN (?)",
+			Where:  "role IN (?)",
 			Values: []any{roles},
 		},
 		[]string{"first_name", "last_name", "email", "phone_number"},
@@ -107,47 +132,46 @@ func (as adminServiceImpl) GetUsers(ctx context.Context, paginationStr dbutil.Pa
 		return nil, nil, err
 	}
 
-	customers, total, err := as.repo.Users(ctx, pagination)
-	if err != nil {
+	customers, total, err, empty := as.repo.Users(ctx, pagination)
+	if err != nil || empty {
 		return nil, nil, err
 	}
 
 	return entity.SimplifyUsers(customers), hypermedia.Pagination(paginationStr, total, hypermedia.DefaultParam{
 		Name:    "roles",
-		Default: "admin+driver+support",
+		Default: "admin,driver,support",
 		Value:   rolesStr,
 	}), nil
 }
 
-func (as *adminServiceImpl) NewEmployee(ctx context.Context, ru entity.RegistrantionEmployee, image *multipart.FileHeader, role auth.Role) (string, error) {
-	user, starts := ru.ToUser(role)
-	availability, err := user.PrepareNewEmployee(starts)
+func (as *adminServiceImpl) NewEmployee(ctx context.Context, ru entity.RegistrantionEmployee, image *multipart.FileHeader, saveImageFunc func(file *multipart.FileHeader, dst string) error, role auth.Role) error {
+	user, starts, params1 := ru.ToUser(role)
 
-	if err != nil {
-		return "", err
+	availability, params2 := user.PrepareNewEmployee(starts)
+
+	if params1 != nil || params2 != nil {
+		return rfc7807.BadRequest("employee-data", "Employee Data Error", "Provided data is not valid.", append(params1, params2...)...)
 	}
 
 	if image != nil {
-		err := images.Save("../../../../static/imgs/"+user.ID.String(), image)
+		imageName := user.ID.String() + ".jpg"
+		filePath := filepath.Join("../../static", "imgs", imageName)
+		err := saveImageFunc(image, filePath)
 		if err != nil {
-			return "", rfc7807.Internal("image-saving-error", err.Error())
+			return rfc7807.Internal("image-saving-error", err.Error())
 		}
-		user.ImageUrl = config.APIURL() + "/imgs/" + user.ID.String()
+		user.ImageUrl = config.APIURL() + "/imgs/" + user.ID.String() + ".jpg"
 	} else {
 		user.ImageUrl = config.APIURL() + "/imgs/guest-female.png"
 	}
 
-	err = as.repo.NewUser(ctx, &user)
+	err := as.repo.NewUser(ctx, &user)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	err = as.repo.SetEmployeeAvailability(ctx, availability)
-	if err != nil {
-		return "", err
-	}
+	return as.repo.SetEmployeeAvailability(ctx, availability)
 
-	return user.Role.Val.GenerateToken(user.Email, user.ID)
 }
 
 func (as *adminServiceImpl) SetEmployeeAvailability(ctx context.Context, schedule []entity.EmployeeAvailability) error {
@@ -167,7 +191,7 @@ func (as *adminServiceImpl) SetEmployeeAvailability(ctx context.Context, schedul
 		return rfc7807.BadRequest("invalid-employee-schedule", "Invalid Employee Schedule Error", "Provided params are not valid.", invalidParams...)
 	}
 
-	exists, err := as.repo.UserExists(ctx, userID)
+	exists, err := as.repo.Exists(ctx, userID)
 	if err != nil {
 		return err
 	}

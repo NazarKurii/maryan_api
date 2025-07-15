@@ -10,48 +10,48 @@ import (
 	"gorm.io/gorm"
 )
 
-type Adress interface {
-	Create(ctx context.Context, p *entity.Adress) error
-	Update(ctx context.Context, p *entity.Adress) error
+type Address interface {
+	Create(ctx context.Context, p *entity.Address) error
+	Update(ctx context.Context, p *entity.Address) error
 	ForseDelete(ctx context.Context, id uuid.UUID) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	Status(ctx context.Context, id uuid.UUID) (exists bool, usedByTicket bool, err error)
-	GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error)
-	GetAdresses(ctx context.Context, p dbutil.Pagination) ([]entity.Adress, int, error)
+	GetByID(ctx context.Context, id uuid.UUID) (entity.Address, error)
+	GetAddresses(ctx context.Context, p dbutil.Pagination) ([]entity.Address, int, error, bool)
 }
 
-type adressRepo struct {
-	ds dataStore.Adress
+type AddressRepo struct {
+	ds dataStore.Address
 }
 
-func (a *adressRepo) Create(ctx context.Context, adress *entity.Adress) error {
-	return a.ds.Create(ctx, adress)
+func (a *AddressRepo) Create(ctx context.Context, Address *entity.Address) error {
+	return a.ds.Create(ctx, Address)
 }
 
-func (a *adressRepo) Update(ctx context.Context, adress *entity.Adress) error {
-	return a.ds.Update(ctx, adress)
+func (a *AddressRepo) Update(ctx context.Context, Address *entity.Address) error {
+	return a.ds.Update(ctx, Address)
 }
 
-func (a *adressRepo) ForseDelete(ctx context.Context, id uuid.UUID) error {
+func (a *AddressRepo) ForseDelete(ctx context.Context, id uuid.UUID) error {
 	return a.ds.ForseDelete(ctx, id)
 }
 
-func (a *adressRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
+func (a *AddressRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return a.ds.SoftDelete(ctx, id)
 }
 
-func (a *adressRepo) Status(ctx context.Context, id uuid.UUID) (bool, bool, error) {
+func (a *AddressRepo) Status(ctx context.Context, id uuid.UUID) (bool, bool, error) {
 	return a.ds.Status(ctx, id)
 }
 
-func (a *adressRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error) {
+func (a *AddressRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Address, error) {
 	return a.ds.GetByID(ctx, id)
 }
 
-func (a *adressRepo) GetAdresses(ctx context.Context, p dbutil.Pagination) ([]entity.Adress, int, error) {
-	return a.ds.GetAdresses(ctx, p)
+func (a *AddressRepo) GetAddresses(ctx context.Context, p dbutil.Pagination) ([]entity.Address, int, error, bool) {
+	return a.ds.GetAddresses(ctx, p)
 }
 
-func NewPassengerRepo(db *gorm.DB) Adress {
-	return &adressRepo{dataStore.NewAdress(db)}
+func NewAddressRepo(db *gorm.DB) Address {
+	return &AddressRepo{dataStore.NewAddress(db)}
 }

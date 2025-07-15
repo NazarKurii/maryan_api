@@ -39,7 +39,7 @@ func (us *userServiceImpl) Role() auth.Role {
 func (us *userServiceImpl) Login(ctx context.Context, email, password string) (string, error) {
 	if !govalidator.IsEmail(email) {
 		return "", rfc7807.BadRequest(
-			"email-invalid",
+			"invalid-email",
 			"Invalid Email Error",
 			"Provided email contains forbidden characters or is not an email at all.",
 		)
