@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Trip struct {
@@ -56,4 +57,52 @@ func MigrateTrip(db *gorm.DB) error {
 		&Trip{},
 		&TripUpdate{},
 	)
+}
+
+func PreloadTrip() []string {
+	return []string{
+		clause.Associations,
+
+		"OutboundConnection.Bus",
+		"OutboundConnection.Bus.Images",
+		"OutboundConnection.Bus.LeadDriver",
+		"OutboundConnection.Bus.AssistantUser",
+		"OutboundConnection.Bus.Seats",
+		"OutboundConnection.Bus.Structure",
+		"OutboundConnection.Bus.Structure.Positions",
+
+		"OutboundConnection.ReplacedBus",
+		"OutboundConnection.ReplacedBus.Images",
+		"OutboundConnection.ReplacedBus.LeadDriver",
+		"OutboundConnection.ReplacedBus.AssistantUser",
+		"OutboundConnection.ReplacedBus.Seats",
+		"OutboundConnection.ReplacedBus.Structure",
+		"OutboundConnection.ReplacedBus.Structure.Positions",
+
+		"OutboundConnection.Stops",
+		"OutboundConnection.Stops.Ticket",
+		"OutboundConnection.Stops.Updates",
+		"OutboundConnection.Updates",
+
+		"ReturnConnection.Bus",
+		"ReturnConnection.Bus.Images",
+		"ReturnConnection.Bus.LeadDriver",
+		"ReturnConnection.Bus.AssistantUser",
+		"ReturnConnection.Bus.Seats",
+		"ReturnConnection.Bus.Structure",
+		"ReturnConnection.Bus.Structure.Positions",
+
+		"ReturnConnection.ReplacedBus",
+		"ReturnConnection.ReplacedBus.Images",
+		"ReturnConnection.ReplacedBus.LeadDriver",
+		"ReturnConnection.ReplacedBus.AssistantUser",
+		"ReturnConnection.ReplacedBus.Seats",
+		"ReturnConnection.ReplacedBus.Structure",
+		"ReturnConnection.ReplacedBus.Structure.Positions",
+
+		"ReturnConnection.Stops",
+		"ReturnConnection.Stops.Ticket",
+		"ReturnConnection.Stops.Updates",
+		"ReturnConnection.Updates",
+	}
 }

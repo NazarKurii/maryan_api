@@ -16,9 +16,9 @@ type Bus struct {
 	RegistrationNumber string         `gorm:"type:varchar(8);not null;unique"              json:"registrationNumber;omitemty"`
 	Year               int            `gorm:"type:smallint;not null"                       json:"year;omitemty"`
 	GpsTrackerID       string         `gorm:"type:varchar(255);not null"                   json:"gpsTrackerID;omitemty"`
-	LeadDriver         *User          `gorm:"foreignKey:LeadDriverID;references:ID"        json:"leadDriver"`
+	LeadDriver         User           `gorm:"foreignKey:LeadDriverID;references:ID"        json:"leadDriver"`
 	LeadDriverID       uuid.UUID      `gorm:"type:uuid;not null"                           json:"-"`
-	AssistantDriver    *User          `gorm:"foreignKey:AssistantDriverID;references:ID"   json:"assistantDriver"`
+	AssistantDriver    User           `gorm:"foreignKey:AssistantDriverID;references:ID"   json:"assistantDriver"`
 	AssistantDriverID  uuid.UUID      `gorm:"type:uuid;not null"                           json:"-"`
 	Seats              []Seat         `gorm:"foreignKey:BusID"                             json:"rows;omitemty"`
 	Structure          []Row          `gorm:"not null"                                     json:"structure;omitemty"`

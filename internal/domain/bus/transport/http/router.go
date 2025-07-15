@@ -13,7 +13,6 @@ import (
 )
 
 func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
-
 	adminRouter := ginutil.CreateAuthRouter("/admin", auth.Admin.SecretKey(), s)
 	handler := newBusHandler(service.NewBusService(repo.NewBusRepo(db), repo.NewDriverRepo(db)))
 

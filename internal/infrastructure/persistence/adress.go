@@ -24,35 +24,35 @@ type adressMySQL struct {
 	db *gorm.DB
 }
 
-func (ams *adressMySQL) Create(ctx context.Context, adress *entity.Adress) error {
+func (ams adressMySQL) Create(ctx context.Context, adress *entity.Adress) error {
 	return dbutil.PossibleCreateError(
 		ams.db.WithContext(ctx).Create(adress),
 		"invalid-adress-data",
 	)
 }
 
-func (ams *adressMySQL) Update(ctx context.Context, adress *entity.Adress) error {
+func (ams adressMySQL) Update(ctx context.Context, adress *entity.Adress) error {
 	return dbutil.PossibleRawsAffectedError(
 		ams.db.WithContext(ctx).Save(adress),
 		"invalid-adress-data",
 	)
 }
 
-func (ams *adressMySQL) ForseDelete(ctx context.Context, id uuid.UUID) error {
+func (ams adressMySQL) ForseDelete(ctx context.Context, id uuid.UUID) error {
 	return dbutil.PossibleRawsAffectedError(
 		ams.db.WithContext(ctx).Unscoped().Delete(&entity.Adress{ID: id}),
 		"invalid-adress-data",
 	)
 }
 
-func (ams *adressMySQL) SoftDelete(ctx context.Context, id uuid.UUID) error {
+func (ams adressMySQL) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return dbutil.PossibleRawsAffectedError(
 		ams.db.WithContext(ctx).Delete(&entity.Adress{ID: id}),
 		"invalid-adress-data",
 	)
 }
 
-func (ams *adressMySQL) Status(ctx context.Context, id uuid.UUID) (bool, bool, error) {
+func (ams adressMySQL) Status(ctx context.Context, id uuid.UUID) (bool, bool, error) {
 	var exists bool
 	var usedByTicket bool
 
@@ -71,7 +71,7 @@ func (ams *adressMySQL) Status(ctx context.Context, id uuid.UUID) (bool, bool, e
 	return exists, usedByTicket, nil
 }
 
-func (ams *adressMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error) {
+func (ams adressMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Adress, error) {
 	adress := entity.Adress{ID: id}
 	return adress, dbutil.PossibleFirstError(
 		ams.db.WithContext(ctx).First(&adress),
@@ -79,7 +79,7 @@ func (ams *adressMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Adres
 	)
 }
 
-func (ams *adressMySQL) GetAdresses(ctx context.Context, p dbutil.Pagination) ([]entity.Adress, int, error) {
+func (ams adressMySQL) GetAdresses(ctx context.Context, p dbutil.Pagination) ([]entity.Adress, int, error) {
 	return dbutil.Paginate[entity.Adress](ctx, ams.db, p)
 }
 

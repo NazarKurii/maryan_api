@@ -22,7 +22,7 @@ type userMySQL struct {
 	db *gorm.DB
 }
 
-func (uds *userMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.User, error) {
+func (uds userMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.User, error) {
 	user := entity.User{ID: id}
 	return user, dbutil.PossibleFirstError(
 		uds.db.WithContext(ctx).First(&user),
@@ -30,7 +30,7 @@ func (uds *userMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.User, e
 	)
 }
 
-func (uds *userMySQL) Login(ctx context.Context, email string) (uuid.UUID, string, error) {
+func (uds userMySQL) Login(ctx context.Context, email string) (uuid.UUID, string, error) {
 	var user entity.User
 	err := dbutil.PossibleFirstError(
 		uds.db.WithContext(ctx).Select("id", "password").Where("email = ?", email).First(&user),
@@ -39,7 +39,7 @@ func (uds *userMySQL) Login(ctx context.Context, email string) (uuid.UUID, strin
 	return user.ID, user.Password, err
 }
 
-func (uds *userMySQL) EmailExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
+func (uds userMySQL) EmailExists(ctx context.Context, email string) (uuid.UUID, bool, error) {
 	var user entity.User
 	err := dbutil.PossibleRawsAffectedError(
 		uds.db.WithContext(ctx).Select("id").Where("email = ?", email).First(&user),
@@ -48,7 +48,7 @@ func (uds *userMySQL) EmailExists(ctx context.Context, email string) (uuid.UUID,
 	return user.ID, user.ID != uuid.Nil, err
 }
 
-func (uds *userMySQL) UserExists(ctx context.Context, id uuid.UUID) (bool, error) {
+func (uds userMySQL) UserExists(ctx context.Context, id uuid.UUID) (bool, error) {
 	var exists bool
 	err := dbutil.PossibleRawsAffectedError(
 		uds.db.WithContext(ctx).Select("SELECT EXISTS(SELECT 1 FROM users WHERE id = ?)", id).Scan(exists),

@@ -24,35 +24,35 @@ type passengerMySQL struct {
 	db *gorm.DB
 }
 
-func (pds *passengerMySQL) Create(ctx context.Context, passenger *entity.Passenger) error {
+func (pds passengerMySQL) Create(ctx context.Context, passenger *entity.Passenger) error {
 	return dbutil.PossibleCreateError(
 		pds.db.WithContext(ctx).Create(passenger),
 		"invalid-passenger-data",
 	)
 }
 
-func (pds *passengerMySQL) Update(ctx context.Context, passenger *entity.Passenger) error {
+func (pds passengerMySQL) Update(ctx context.Context, passenger *entity.Passenger) error {
 	return dbutil.PossibleRawsAffectedError(
 		pds.db.WithContext(ctx).Save(passenger),
 		"invalid-passenger-data",
 	)
 }
 
-func (pds *passengerMySQL) ForseDelete(ctx context.Context, id uuid.UUID) error {
+func (pds passengerMySQL) ForseDelete(ctx context.Context, id uuid.UUID) error {
 	return dbutil.PossibleRawsAffectedError(
 		pds.db.WithContext(ctx).Unscoped().Delete(&entity.Passenger{ID: id}),
 		"invalid-passenger-data",
 	)
 }
 
-func (pds *passengerMySQL) SoftDelete(ctx context.Context, id uuid.UUID) error {
+func (pds passengerMySQL) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return dbutil.PossibleRawsAffectedError(
 		pds.db.WithContext(ctx).Delete(&entity.Passenger{ID: id}),
 		"invalid-passenger-data",
 	)
 }
 
-func (pds *passengerMySQL) Status(ctx context.Context, id uuid.UUID) (bool, bool, error) {
+func (pds passengerMySQL) Status(ctx context.Context, id uuid.UUID) (bool, bool, error) {
 	var exists bool
 	var usedByTicket bool
 
@@ -71,7 +71,7 @@ func (pds *passengerMySQL) Status(ctx context.Context, id uuid.UUID) (bool, bool
 	return exists, usedByTicket, nil
 }
 
-func (pds *passengerMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Passenger, error) {
+func (pds passengerMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Passenger, error) {
 	passenger := entity.Passenger{ID: id}
 	return passenger, dbutil.PossibleFirstError(
 		pds.db.WithContext(ctx).First(&passenger),
@@ -79,7 +79,7 @@ func (pds *passengerMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Pa
 	)
 }
 
-func (pds *passengerMySQL) GetPassengers(ctx context.Context, p dbutil.Pagination) ([]entity.Passenger, int, error) {
+func (pds passengerMySQL) GetPassengers(ctx context.Context, p dbutil.Pagination) ([]entity.Passenger, int, error) {
 	return dbutil.Paginate[entity.Passenger](ctx, pds.db, p)
 }
 

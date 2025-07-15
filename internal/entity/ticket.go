@@ -19,7 +19,6 @@ type Ticket struct {
 	DropOffAdress   Adress         `gorm:"foreignKey:DropOffAdressID"   json:"dropOffAddress"`
 	Payment         Payment        `                                    json:"payment"`
 	CreatedAt       time.Time      `gorm:"not null"                     json:"createdAt"`
-	CanceledAt      time.Time      `                                    json:"canceledAt"`
 	CompletedAt     time.Time      `                                    json:"completedAt"`
 	DeletedAt       gorm.DeletedAt `                                    json:"deletedAt"`
 }

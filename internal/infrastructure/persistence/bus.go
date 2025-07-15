@@ -28,11 +28,11 @@ type busMySQL struct {
 	db *gorm.DB
 }
 
-func (bds *busMySQL) Create(ctx context.Context, bus *entity.Bus) error {
+func (bds busMySQL) Create(ctx context.Context, bus *entity.Bus) error {
 	return dbutil.PossibleCreateError(bds.db.WithContext(ctx).Create(&bus), "invalid-bus-params")
 }
 
-func (bds *busMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, error) {
+func (bds busMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, error) {
 	var bus = entity.Bus{ID: id}
 	return bus, dbutil.PossibleFirstError(
 		bds.db.WithContext(ctx).
@@ -42,18 +42,18 @@ func (bds *busMySQL) GetByID(ctx context.Context, id uuid.UUID) (entity.Bus, err
 		"non-existing-bus")
 }
 
-func (bds *busMySQL) GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, int, error) {
+func (bds busMySQL) GetBuses(ctx context.Context, p dbutil.Pagination) ([]entity.Bus, int, error) {
 	return dbutil.Paginate[entity.Bus](ctx, bds.db.Select("id", "model", "images", "year", "lead_driver", "assistant_driver", "seats"), p, clause.Associations)
 }
 
-func (bds *busMySQL) Delete(ctx context.Context, id uuid.UUID) error {
+func (bds busMySQL) Delete(ctx context.Context, id uuid.UUID) error {
 	return dbutil.PossibleRawsAffectedError(
 		bds.db.WithContext(ctx).
 			Delete(&entity.Bus{ID: id}),
 		"non-existing-bus")
 }
 
-func (bds *busMySQL) IsActive(ctx context.Context, id uuid.UUID) (bool, error) {
+func (bds busMySQL) IsActive(ctx context.Context, id uuid.UUID) (bool, error) {
 	var isActive bool
 	return isActive, dbutil.PossibleRawsAffectedError(
 		bds.db.WithContext(ctx).
@@ -64,7 +64,7 @@ func (bds *busMySQL) IsActive(ctx context.Context, id uuid.UUID) (bool, error) {
 		"non-existing-bus")
 }
 
-func (bds *busMySQL) MakeActive(ctx context.Context, id uuid.UUID) error {
+func (bds busMySQL) MakeActive(ctx context.Context, id uuid.UUID) error {
 	return dbutil.PossibleRawsAffectedError(
 		bds.db.WithContext(ctx).
 			Model(&entity.Bus{}).
@@ -73,7 +73,7 @@ func (bds *busMySQL) MakeActive(ctx context.Context, id uuid.UUID) error {
 		"non-existing-bus")
 }
 
-func (bds *busMySQL) MakeInactive(ctx context.Context, id uuid.UUID) error {
+func (bds busMySQL) MakeInactive(ctx context.Context, id uuid.UUID) error {
 	return dbutil.PossibleRawsAffectedError(
 		bds.db.WithContext(ctx).
 			Model(&entity.Bus{}).
@@ -82,7 +82,7 @@ func (bds *busMySQL) MakeInactive(ctx context.Context, id uuid.UUID) error {
 		"non-existing-bus")
 }
 
-func (bds *busMySQL) RegistrationNumberExists(ctx context.Context, registrationNumber string) (bool, error) {
+func (bds busMySQL) RegistrationNumberExists(ctx context.Context, registrationNumber string) (bool, error) {
 	var exists bool
 	err := bds.db.WithContext(ctx).
 		Raw("SELECT EXISTS(SELECT 1 FROM buses WHERE registration_number = ?)", registrationNumber).
@@ -90,7 +90,7 @@ func (bds *busMySQL) RegistrationNumberExists(ctx context.Context, registrationN
 	return exists, err
 }
 
-func (bds *busMySQL) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
+func (bds busMySQL) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	var exists bool
 	err := bds.db.WithContext(ctx).
 		Raw("SELECT EXISTS(SELECT 1 FROM buses WHERE id = ?)", id).
@@ -98,7 +98,7 @@ func (bds *busMySQL) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	return exists, err
 }
 
-func (bds *busMySQL) GetAvailable(ctx context.Context, dates []time.Time, pagination dbutil.Pagination) ([]entity.Bus, int, error) {
+func (bds busMySQL) GetAvailable(ctx context.Context, dates []time.Time, pagination dbutil.Pagination) ([]entity.Bus, int, error) {
 	return dbutil.Paginate[entity.Bus](ctx, bds.db.
 		Table("buses").
 		Select("DISTINCT buses.*").
@@ -106,16 +106,16 @@ func (bds *busMySQL) GetAvailable(ctx context.Context, dates []time.Time, pagina
 		Where("bus_availabilities NOT IN (?)", dates), pagination)
 }
 
-func (dbs *busMySQL) ChangeLeadDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error {
-	return dbutil.PossibleRawsAffectedError(dbs.db.WithContext(ctx).Table("buses").Where("id = ?", busID).Update("lead_driver", driverID), "non-existing-driver")
+func (dbs busMySQL) ChangeLeadDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error {
+	return dbutil.PossibleForeignKeyError(dbs.db.WithContext(ctx).Table("buses").Where("id = ?", busID).Update("lead_driver", driverID), "non-existing-bus", "non-existing-driver", "invalid-id")
 }
 
-func (dbs *busMySQL) ChangeAssistantDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error {
-	return dbutil.PossibleRawsAffectedError(dbs.db.WithContext(ctx).Table("buses").Where("id = ?", busID).Update("assistant_driver", driverID), "non-existing-driver")
+func (dbs busMySQL) ChangeAssistantDriver(ctx context.Context, busID uuid.UUID, driverID uuid.UUID) error {
+	return dbutil.PossibleForeignKeyError(dbs.db.WithContext(ctx).Table("buses").Where("id = ?", busID).Update("assistant_driver", driverID), "non-existing-bus", "non-existing-driver", "invalid-id")
 }
 
-func (dbs *busMySQL) SetSchedule(ctx context.Context, schedule []entity.BusAvailability) error {
-	return dbutil.PossibleRawsAffectedError(dbs.db.WithContext(ctx).Create(schedule), "non-existing-bus")
+func (dbs busMySQL) SetSchedule(ctx context.Context, schedule []entity.BusAvailability) error {
+	return dbutil.PossibleForeignKeyCreateError(dbs.db.WithContext(ctx).Create(schedule), "non-existing-bus", "bus-schedule-data")
 }
 
 // ------------------------Repos Initialization Functions--------------

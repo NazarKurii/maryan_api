@@ -7,26 +7,32 @@ import (
 	"github.com/biter777/countries"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Connection struct {
-	ID                      uuid.UUID          `gorm:"type:uuid;primaryKey"                                                      json:"id"`
-	Line                    int                `gorm:"type:TINYINT;not null"                                                     json:"line"`
-	DepartureCountry        string             `gorm:"type:varchar(56);not null"                                                 json:"departureCountry"`
-	DestinationCountry      string             `gorm:"type:varchar(56);not null"                                                 json:"destinationCountry"`
-	DepartureTime           time.Time          `gorm:"not null"                                                                  json:"departureTime"`
-	ArrivalTime             time.Time          `gorm:"not null"                                                                  json:"arrivalTime"`
-	EstimatedDuration       int                `gorm:"-"                                                                         json:"estimatedDuration"`
-	GoogleMapsConnectionURL string             `gorm:"not null"                                                                  json:"googleMapsConnectionURL"`
-	BusID                   uuid.UUID          `gorm:"type:uuid;not null"                                                        json:"-"`
-	Bus                     Bus                `gorm:"foreignKey:BusID"                                                          json:"bus"`
-	Stops                   []Stop             `                                                                                 json:"stops"`
-	CreatedAt               time.Time          `gorm:"not null"                                                                  json:"createdAt"`
-	Updates                 []ConnectionUpdate `gorm:"not null"                                                                  json:"updates"`
-	Type                    connectionType     `gorm:"type:enum('Comertial','Special Asignment','Break Down Retun')"             json:"type"`
+	ID                 uuid.UUID          `gorm:"type:uuid;primaryKey"                                                                       json:"id"`
+	Line               int                `gorm:"type:TINYINT;not null"                                                                      json:"line"`
+	DepartureCountry   string             `gorm:"type:varchar(56);not null"                                                                  json:"departureCountry"`
+	DestinationCountry string             `gorm:"type:varchar(56);not null"                                                                  json:"destinationCountry"`
+	DepartureTime      time.Time          `gorm:"not null"                                                                                   json:"departureTime"`
+	ArrivalTime        time.Time          `gorm:"not null"                                                                                   json:"arrivalTime"`
+	EstimatedDuration  int                `gorm:"-"                                                                                          json:"estimatedDuration"`
+	GoogleMapsURL      string             `gorm:"not null"                                                                                   json:"googleMapsConnectionURL"`
+	BusID              uuid.UUID          `gorm:"type:uuid;not null"                                                                         json:"-"`
+	Bus                Bus                `gorm:"foreignKey:BusID"                                                                           json:"bus"`
+	ReplacedBusID      uuid.UUID          `gorm:"type:uuid"                                                                                  json:"-"`
+	ReplacedBus        Bus                `gorm:"foreignKey:ReplacedBusID"                                                                   json:"replacedBus;omitempty"`
+	Stops              []Stop             `                                                                                                  json:"stops"`
+	CreatedAt          time.Time          `gorm:"not null"                                                                                   json:"createdAt"`
+	Updates            []ConnectionUpdate `gorm:"not null"                                                                                   json:"updates"`
+	Type               connectionType     `gorm:"type:enum('Comertial','Special Asignment','Break Down Return', 'Break Down Replacement')"      json:"type"`
 }
 
 type connectionType string
+type ConnectionType struct {
+	Val connectionType
+}
 
 func ParseConectionType(v string) (connectionType, bool) {
 	switch v {
@@ -41,35 +47,43 @@ type connectionStatus string
 type ConnectionUpdate struct {
 	ConnectionID uuid.UUID        `json:"-"          gorm:"type:uuid; not null"`
 	CreatedAt    time.Time        `json:"createAt"   gorm:"not null" json:"createAt"`
-	Status       connectionStatus `json:"status"     gorm:"type:enum('Registered','Canceled','Sold','Started','Finished','Stopped','Renewed','Could Not Be Finished');not null" `
+	Status       connectionStatus `json:"status"     gorm:"type:enum('Registered','Canceled','Sold','Started','Finished','Stopped','Renewed','Could Not Be Finished','Departure Time Changed');not null" `
 	Comment      string           `json:"commnet"    gorm:"type:varchar(500)"`
 }
 
 const (
-	ComertialConnectionType        = "Comertial"
-	SpecialAsignmentConnectionType = "Special Asignment"
-	BreakDownRetunConnectionType   = "Break down"
+	ComertialConnectionType            = "Comertial"
+	SpecialAsignmentConnectionType     = "Special Asignment"
+	BreakDownRetunConnectionType       = "Break down Return"
+	BreakDownReplacementConnectionType = "Break Down Replacement"
 
-	RegisteredConnectionStatus       = "Registered"
-	CanceledConnectionStatus         = "Canceled"
-	SoldConnectionStatus             = "Sold"
-	StartedConnectionStatus          = "Started"
-	FinishedConnectionStatus         = "Finished"
-	StoppedConnectionStatus          = "Stopped"
-	RenewedConnectionStatus          = "Renewed"
-	CouldNotBeFinishConnectionStatus = "Could Not Be Finished"
+	RegisteredConnectionStatus           = "Registered"
+	ChangedDepartureTimeConnectionStatus = "Departure Time Changed"
+	CanceledConnectionStatus             = "Canceled"
+	SoldConnectionStatus                 = "Sold"
+	StartedConnectionStatus              = "Started"
+	FinishedConnectionStatus             = "Finished"
+	StoppedConnectionStatus              = "Stopped"
+	RenewedConnectionStatus              = "Renewed"
+	CouldNotBeFinishConnectionStatus     = "Could Not Be Finished"
 )
 
 type Stop struct {
-	ID       uuid.UUID  `gorm:"type:uuid;primaryKey"                         json:"id"`
-	TicketID uuid.UUID  `gorm:"not null"                                     json:"-"`
-	Ticket   Ticket     `gorm:"foreignKey:TicketID"                          json:"ticket"`
-	RouteID  uuid.UUID  `gorm:"not null"                                     json:"-"`
-	Type     stopType   `gorm:"type:enum('Pick-up','Drop-off')"              json:"type"`
-	Status   stopStatus `gorm:"type:enum('Confirmed','Missed','Completed')"  json:"status"`
+	ID           uuid.UUID    `gorm:"type:uuid;primaryKey"                         json:"id"`
+	TicketID     uuid.UUID    `gorm:"type:uuid;not null"                                     json:"-"`
+	Ticket       Ticket       `gorm:"foreignKey:TicketID"                          json:"ticket"`
+	ConnectionID uuid.UUID    `gorm:"type:uuid;not null"                                     json:"-"`
+	Type         stopType     `gorm:"type:enum('Pick-up','Drop-off')"              json:"type"`
+	Updates      []StopUpdate `                                                    json:"updates"`
 }
 
 type stopType string
+type StopUpdate struct {
+	StopID    uuid.UUID  `gorm:"type:uuid; not null"                             json:"-" `
+	Status    stopStatus `gorm:"type:enum('Confirmed','Missed','Completed')"     json:"status"`
+	Comment   string     `gorm:"type:varchar(500)"                               json:"comment"`
+	CreatedAt time.Time  `gorm:"not null"                                        json:"createdAt"`
+}
 type stopStatus string
 
 const (
@@ -156,8 +170,28 @@ type CustomerConnection struct {
 func (c *Connection) ToCustomer() CustomerConnection {
 	return CustomerConnection{
 		ConnectionSimplified:    c.Simplify(),
-		GoogleMapsConnectionURL: c.GoogleMapsConnectionURL,
+		GoogleMapsConnectionURL: c.GoogleMapsURL,
 		Bus:                     c.Bus,
 		Stops:                   c.Stops,
+	}
+}
+
+func PreloadConnection() []string {
+	return []string{
+		clause.Associations,
+
+		"Bus.Images",
+		"Bus.LeadDriver",
+		"Bus.AssistantUser",
+		"Bus.Seats",
+		"Bus.Structure",
+		"Bus.Structure.Positions",
+
+		"ReplacedBus.Images",
+		"ReplacedBus.LeadDriver",
+		"ReplacedBus.AssistantUser",
+		"ReplacedBus.Seats",
+		"ReplacedBus.Structure",
+		"ReplacedBus.Structure.Positions",
 	}
 }
