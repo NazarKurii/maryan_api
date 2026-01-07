@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"maryan_api/pkg/log"
+
+	"github.com/nazarkurii/marshrutka_api/pkg/log"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

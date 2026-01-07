@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"slices"
 
-	"maryan_api/config"
-	rfc7807 "maryan_api/pkg/problem"
 	"time"
+
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
+
+	"github.com/nazarkurii/marshrutka_api/config"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/d3code/uuid"

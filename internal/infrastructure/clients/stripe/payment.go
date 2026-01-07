@@ -1,7 +1,7 @@
 package stripe
 
 import (
-	"maryan_api/config"
+	"github.com/nazarkurii/marshrutka_api/config"
 
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/checkout/session"

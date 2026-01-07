@@ -2,18 +2,19 @@ package service
 
 import (
 	"context"
-	"maryan_api/config"
-	"maryan_api/internal/domain/parcel/repo"
-	"maryan_api/internal/entity"
-	"maryan_api/internal/infrastructure/clients/stripe"
-	"maryan_api/pkg/auth"
-	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
-	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	"github.com/nazarkurii/marshrutka_api/internal/domain/parcel/repo"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/internal/infrastructure/clients/stripe"
+	"github.com/nazarkurii/marshrutka_api/pkg/auth"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
+	"github.com/nazarkurii/marshrutka_api/pkg/hypermedia"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 	"github.com/golang-jwt/jwt/v5"

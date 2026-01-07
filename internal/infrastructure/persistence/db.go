@@ -3,7 +3,8 @@ package dataStore
 import (
 	"fmt"
 	"log"
-	"maryan_api/config"
+
+	"github.com/nazarkurii/marshrutka_api/config"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"gorm.io/driver/mysql"

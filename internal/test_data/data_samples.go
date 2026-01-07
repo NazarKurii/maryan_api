@@ -2,10 +2,11 @@ package testdata
 
 import (
 	"fmt"
-	"maryan_api/config"
-	"maryan_api/internal/entity"
 	"math/rand"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
 
 	"github.com/d3code/uuid"
 	"gorm.io/gorm"

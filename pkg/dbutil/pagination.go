@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"math"
 
-	rfc7807 "maryan_api/pkg/problem"
 	"slices"
 	"strconv"
+
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"gorm.io/gorm"
 )

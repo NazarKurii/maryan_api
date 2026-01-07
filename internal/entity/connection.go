@@ -1,10 +1,11 @@
 package entity
 
 import (
-	"maryan_api/config"
-	rfc7807 "maryan_api/pkg/problem"
 	"strconv"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 	"gorm.io/gorm"
@@ -248,7 +249,6 @@ type FindConnectionsRequestJSON struct {
 	Adults    string `json:"adults"`
 	Children  string `json:"children"`
 	Teenagers string `json:"teenagers"`
-	Range     string `json:"range"`
 }
 
 func (r FindConnectionsRequestJSON) Parse() (FindConnectionsRequest, rfc7807.InvalidParams) {
@@ -278,13 +278,6 @@ func (r FindConnectionsRequestJSON) Parse() (FindConnectionsRequest, rfc7807.Inv
 		invalidParams.SetInvalidParam("children", "cannot be more than 0 if there is no adult.")
 	}
 
-	connectionsRange, err := strconv.Atoi(r.Range)
-	if err != nil {
-		invalidParams.SetInvalidParam("range", err.Error())
-	} else if connectionsRange < 0 {
-		invalidParams.SetInvalidParam("range", "cannot be less that 0")
-	}
-
 	if invalidParams != nil {
 		return FindConnectionsRequest{}, invalidParams
 	}
@@ -311,7 +304,6 @@ func (r FindConnectionsRequestJSON) Parse() (FindConnectionsRequest, rfc7807.Inv
 		Adults:    adults,
 		Children:  children,
 		Teenagers: teenagers,
-		Range:     connectionsRange,
 	}, nil
 
 }
@@ -323,7 +315,6 @@ type FindConnectionsRequest struct {
 	Adults    int
 	Children  int
 	Teenagers int
-	Range     int
 }
 
 type FindConnectionsResponse struct {

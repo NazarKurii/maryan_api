@@ -1,12 +1,13 @@
 package http
 
 import (
-	"maryan_api/internal/domain/adress/repo"
-	"maryan_api/internal/domain/adress/service"
-	"maryan_api/pkg/auth"
-	ginutil "maryan_api/pkg/ginutils"
-	"maryan_api/pkg/hypermedia"
 	"net/http"
+
+	"github.com/nazarkurii/marshrutka_api/internal/domain/adress/repo"
+	"github.com/nazarkurii/marshrutka_api/internal/domain/adress/service"
+	"github.com/nazarkurii/marshrutka_api/pkg/auth"
+	ginutil "github.com/nazarkurii/marshrutka_api/pkg/ginutils"
+	"github.com/nazarkurii/marshrutka_api/pkg/hypermedia"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

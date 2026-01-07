@@ -1,7 +1,7 @@
 package ginutil
 
 import (
-	"maryan_api/pkg/auth"
+	"github.com/nazarkurii/marshrutka_api/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )

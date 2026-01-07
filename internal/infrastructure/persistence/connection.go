@@ -3,11 +3,12 @@ package dataStore
 import (
 	"context"
 	"fmt"
-	"maryan_api/config"
-	"maryan_api/internal/entity"
-	"maryan_api/pkg/dbutil"
-	rfc7807 "maryan_api/pkg/problem"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 	"gorm.io/gorm"
@@ -152,7 +153,7 @@ func (ds *connectionMySQL) findLeftRange(
 			).
 			Group("DATE(departure_time)").
 			Order("DATE(departure_time) DESC").
-			Limit(request.Range).
+			Limit(5).
 			Scan(&foundConnections.LeftRange),
 	)
 }
@@ -180,7 +181,7 @@ func (ds *connectionMySQL) findRightRange(
 			).
 			Group("DATE(departure_time)").
 			Order("DATE(departure_time) ASC").
-			Limit(request.Range).
+			Limit(5).
 			Scan(&foundConnections.RightRange),
 	)
 }

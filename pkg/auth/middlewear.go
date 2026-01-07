@@ -1,9 +1,10 @@
 package auth
 
 import (
-	"maryan_api/pkg/log"
-	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
+
+	"github.com/nazarkurii/marshrutka_api/pkg/log"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/gin-gonic/gin"
 )

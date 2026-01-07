@@ -2,8 +2,9 @@ package log
 
 import (
 	"encoding/json"
-	rfc7807 "maryan_api/pkg/problem"
 	"time"
+
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

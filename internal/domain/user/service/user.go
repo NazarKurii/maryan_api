@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"maryan_api/internal/domain/user/repo"
-	"maryan_api/internal/entity"
-	"maryan_api/pkg/auth"
-	rfc7807 "maryan_api/pkg/problem"
-	"maryan_api/pkg/security"
+
+	"github.com/nazarkurii/marshrutka_api/internal/domain/user/repo"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/pkg/auth"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
+	"github.com/nazarkurii/marshrutka_api/pkg/security"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/d3code/uuid"

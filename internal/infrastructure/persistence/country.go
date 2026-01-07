@@ -3,8 +3,8 @@ package dataStore
 import (
 	"context"
 
-	"maryan_api/internal/entity"
-	"maryan_api/pkg/dbutil"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
 
 	"gorm.io/gorm"
 )

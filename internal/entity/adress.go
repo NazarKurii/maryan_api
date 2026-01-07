@@ -2,10 +2,11 @@ package entity
 
 import (
 	"context"
-	googleMaps "maryan_api/internal/infrastructure/clients/google/maps"
-	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 	"time"
+
+	googleMaps "github.com/nazarkurii/marshrutka_api/internal/infrastructure/clients/google/maps"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 	"gorm.io/gorm"

@@ -1,9 +1,9 @@
 package dataStore
 
 import (
-	"maryan_api/internal/entity"
-	"maryan_api/internal/valueobject"
-	"maryan_api/pkg/log"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/internal/valueobject"
+	"github.com/nazarkurii/marshrutka_api/pkg/log"
 
 	"gorm.io/gorm"
 )

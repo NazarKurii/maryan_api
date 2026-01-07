@@ -3,8 +3,8 @@ package repo
 import (
 	"context"
 
-	"maryan_api/internal/entity"
-	dataStore "maryan_api/internal/infrastructure/persistence"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	dataStore "github.com/nazarkurii/marshrutka_api/internal/infrastructure/persistence"
 
 	"github.com/d3code/uuid"
 	"gorm.io/gorm"

@@ -2,16 +2,18 @@ package service
 
 import (
 	"context"
-	"maryan_api/config"
-	"maryan_api/internal/domain/connection/repo"
-	"maryan_api/internal/entity"
-	dataStore "maryan_api/internal/infrastructure/persistence"
-	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
-	rfc7807 "maryan_api/pkg/problem"
+	"fmt"
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	"github.com/nazarkurii/marshrutka_api/internal/domain/connection/repo"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	dataStore "github.com/nazarkurii/marshrutka_api/internal/infrastructure/persistence"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
+	"github.com/nazarkurii/marshrutka_api/pkg/hypermedia"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 )
@@ -29,16 +31,11 @@ type CustomerConnection interface {
 }
 
 type connectionService struct {
-	repo repo.Connection
+	repo  repo.Connection
+	cache repo.ConnectionCache
 }
 
-func (c *connectionService) FindConnections(ctx context.Context, requestJSON entity.FindConnectionsRequestJSON) (entity.FindConnectionsResponse, error) {
-	request, invalidParams := requestJSON.Parse()
-
-	if invalidParams != nil {
-		return entity.FindConnectionsResponse{}, rfc7807.BadRequest("request-data", "Request Data Error", "Provied data is not valid.", invalidParams...)
-	}
-
+func (c *connectionService) retrieveFindConnectionsFromDB(ctx context.Context, request entity.FindConnectionsRequest) (entity.FindConnectionsResponse, error) {
 	found, err := c.repo.FindConnections(ctx, request)
 	if err != nil {
 		return entity.FindConnectionsResponse{}, err
@@ -61,9 +58,9 @@ func (c *connectionService) FindConnections(ctx context.Context, requestJSON ent
 		}
 	}
 
-	response.LeftRange = make([]entity.ConnectionsRange, request.Range)
+	response.LeftRange = make([]entity.ConnectionsRange, 5)
 	length := len(found.LeftRange)
-	for i := 0; i < request.Range; i++ {
+	for i := 0; i < 5; i++ {
 		if i < length {
 			response.LeftRange[i] = found.LeftRange[i]
 			response.LeftRange[i].Available = !response.LeftRange[i].SellBefore.Before(config.MustParseToLocalByUUID(time.Now(), request.From).UTC())
@@ -79,9 +76,9 @@ func (c *connectionService) FindConnections(ctx context.Context, requestJSON ent
 		}
 	}
 	slices.Reverse(response.LeftRange)
-	response.RightRange = make([]entity.ConnectionsRange, request.Range)
+	response.RightRange = make([]entity.ConnectionsRange, 5)
 	length = len(found.RightRange)
-	for i := 0; i < request.Range; i++ {
+	for i := 0; i < 5; i++ {
 		if i < length {
 			response.RightRange[i] = found.RightRange[i]
 			response.RightRange[i].Available = !response.RightRange[i].SellBefore.Before(config.MustParseToLocalByUUID(time.Now(), request.From).UTC())
@@ -97,6 +94,60 @@ func (c *connectionService) FindConnections(ctx context.Context, requestJSON ent
 		}
 	}
 	return response, nil
+}
+
+func (c *connectionService) retrieveFindConnectionsFromCache(ctx context.Context, request entity.FindConnectionsRequest) (entity.FindConnectionsResponse, error) {
+	found, err := c.cache.GetFindConnections(ctx, request.From, request.To, request.Date)
+	if err != nil {
+		return entity.FindConnectionsResponse{}, err
+	}
+
+	for i, connection := range found.Connections {
+		found.Connections[i].Available = config.MustParseToLocal(time.Now(), connection.DepartureCountry).UTC().Before(connection.SellBefore)
+		found.Connections[i].Fits = request.Adults+request.Children+request.Teenagers < connection.TicketsLeft
+	}
+
+	for i, date := range found.LeftRange {
+		found.LeftRange[i].Available = config.MustParseToLocalByUUID(time.Now(), request.From).UTC().Before(date.SellBefore)
+	}
+
+	for i, date := range found.RightRange {
+		found.RightRange[i].Available = config.MustParseToLocalByUUID(time.Now(), request.From).UTC().Before(date.SellBefore)
+	}
+
+	return found, nil
+}
+
+func (c *connectionService) cacheFindConnections(ctx context.Context, request entity.FindConnectionsRequest, connections entity.FindConnectionsResponse) error {
+	return c.cache.SetFindConnections(ctx, request.From, request.To, request.Date, connections)
+}
+
+func (c *connectionService) FindConnections(ctx context.Context, requestJSON entity.FindConnectionsRequestJSON) (entity.FindConnectionsResponse, error) {
+	request, invalidParams := requestJSON.Parse()
+
+	if invalidParams != nil {
+		return entity.FindConnectionsResponse{}, rfc7807.BadRequest("request-data", "Request Data Error", "Provied data is not valid.", invalidParams...)
+	}
+
+	connections, err := c.retrieveFindConnectionsFromCache(ctx, request)
+	if err == nil {
+		fmt.Println("Retrieved from redis")
+		return connections, nil
+	}
+
+	connections, err = c.retrieveFindConnectionsFromDB(ctx, request)
+	if err != nil {
+		fmt.Println("Retrieved from db")
+		return entity.FindConnectionsResponse{}, err
+	}
+
+	err = c.cacheFindConnections(ctx, request, connections)
+	if err != nil {
+		fmt.Println("Could not set redis instance")
+	}
+
+	return connections, nil
+
 }
 
 func (c *connectionService) getByID(ctx context.Context, idStr string, passengerNumber string) (entity.Connection, []uuid.UUID, error) {
@@ -207,10 +258,10 @@ func (c *customerService) GetConnections(ctx context.Context, userID uuid.UUID, 
 
 //Declaration functions
 
-func NewAdminConnection(repo repo.Connection) AdminConnection {
-	return &adminService{connectionService{repo}, repo}
+func NewAdminConnection(repo repo.Connection, cacheRepo repo.ConnectionCache) AdminConnection {
+	return &adminService{connectionService{repo, cacheRepo}, repo}
 }
 
-func NewCustomerConnection(repo repo.Connection) CustomerConnection {
-	return &customerService{connectionService{repo}, repo}
+func NewCustomerConnection(repo repo.Connection, cacheRepo repo.ConnectionCache) CustomerConnection {
+	return &customerService{connectionService{repo, cacheRepo}, repo}
 }

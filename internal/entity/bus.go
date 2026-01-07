@@ -3,9 +3,10 @@ package entity
 import (
 	"encoding/json"
 	"fmt"
-	rfc7807 "maryan_api/pkg/problem"
 	"slices"
 	"time"
+
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 	"gorm.io/gorm"

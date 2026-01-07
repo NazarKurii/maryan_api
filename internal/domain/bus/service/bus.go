@@ -3,18 +3,20 @@ package service
 import (
 	"context"
 	"fmt"
-	"maryan_api/config"
 	"path/filepath"
 	"time"
 
-	"maryan_api/internal/domain/bus/repo"
-	"maryan_api/internal/entity"
-	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
-	"maryan_api/pkg/timeutil"
+	"github.com/nazarkurii/marshrutka_api/config"
 
-	rfc7807 "maryan_api/pkg/problem"
+	"github.com/nazarkurii/marshrutka_api/internal/domain/bus/repo"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
+	"github.com/nazarkurii/marshrutka_api/pkg/hypermedia"
+	"github.com/nazarkurii/marshrutka_api/pkg/timeutil"
+
 	"mime/multipart"
+
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 )

@@ -3,10 +3,11 @@ package entity
 import (
 	"database/sql"
 	"fmt"
-	"maryan_api/config"
-	rfc7807 "maryan_api/pkg/problem"
 	"strconv"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/d3code/uuid"

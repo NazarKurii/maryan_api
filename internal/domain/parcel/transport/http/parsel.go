@@ -2,15 +2,16 @@ package http
 
 import (
 	"context"
-	"maryan_api/config"
-	"maryan_api/internal/domain/parcel/service"
-	"maryan_api/internal/entity"
-	"maryan_api/pkg/dbutil"
-	ginutil "maryan_api/pkg/ginutils"
-	"maryan_api/pkg/hypermedia"
-	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	"github.com/nazarkurii/marshrutka_api/internal/domain/parcel/service"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
+	ginutil "github.com/nazarkurii/marshrutka_api/pkg/ginutils"
+	"github.com/nazarkurii/marshrutka_api/pkg/hypermedia"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 	"github.com/gin-gonic/gin"

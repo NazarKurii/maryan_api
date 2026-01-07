@@ -2,9 +2,10 @@ package hypermedia
 
 import (
 	"fmt"
-	"maryan_api/config"
-	"maryan_api/pkg/dbutil"
 	"strconv"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
 )
 
 type DefaultParam struct {

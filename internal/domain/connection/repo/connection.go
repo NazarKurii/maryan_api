@@ -2,9 +2,10 @@ package repo
 
 import (
 	"context"
-	"maryan_api/internal/entity"
-	dataStore "maryan_api/internal/infrastructure/persistence"
-	"maryan_api/pkg/dbutil"
+
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	dataStore "github.com/nazarkurii/marshrutka_api/internal/infrastructure/persistence"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
 
 	"time"
 

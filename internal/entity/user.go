@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"regexp"
 
-	"maryan_api/config"
-	"maryan_api/pkg/auth"
-	rfc7807 "maryan_api/pkg/problem"
-	"maryan_api/pkg/security"
 	"strings"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	"github.com/nazarkurii/marshrutka_api/pkg/auth"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
+	"github.com/nazarkurii/marshrutka_api/pkg/security"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/d3code/uuid"

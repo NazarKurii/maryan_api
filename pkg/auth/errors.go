@@ -2,7 +2,8 @@ package auth
 
 import (
 	"fmt"
-	rfc7807 "maryan_api/pkg/problem"
+
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 )
 
 func problem(role string, err error) rfc7807.Problem {

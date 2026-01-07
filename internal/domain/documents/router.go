@@ -1,9 +1,10 @@
 package documents
 
 import (
-	"maryan_api/config"
-	ginutil "maryan_api/pkg/ginutils"
 	"net/http"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	ginutil "github.com/nazarkurii/marshrutka_api/pkg/ginutils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

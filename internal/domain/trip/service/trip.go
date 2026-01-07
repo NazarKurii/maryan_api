@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
-	"maryan_api/internal/domain/trip/repo"
-	"maryan_api/internal/entity"
-	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
-	rfc7807 "maryan_api/pkg/problem"
-	"maryan_api/pkg/timeutil"
 	"slices"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/internal/domain/trip/repo"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
+	"github.com/nazarkurii/marshrutka_api/pkg/hypermedia"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
+	"github.com/nazarkurii/marshrutka_api/pkg/timeutil"
 
 	"github.com/d3code/uuid"
 )

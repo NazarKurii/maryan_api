@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"maryan_api/config"
-	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"

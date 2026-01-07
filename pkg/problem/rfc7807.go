@@ -3,7 +3,8 @@ package rfc7807
 import (
 	"encoding/json"
 	"fmt"
-	"maryan_api/config"
+
+	"github.com/nazarkurii/marshrutka_api/config"
 
 	"net/http"
 )

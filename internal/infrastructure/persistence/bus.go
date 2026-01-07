@@ -2,10 +2,11 @@ package dataStore
 
 import (
 	"context"
-	"maryan_api/internal/entity"
-	"maryan_api/pkg/dbutil"
-	rfc7807 "maryan_api/pkg/problem"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 	"gorm.io/gorm"

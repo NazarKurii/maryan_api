@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maryan_api/config"
-	"maryan_api/internal/domain/user/service"
-	"maryan_api/internal/entity"
-	ginutil "maryan_api/pkg/ginutils"
-	"maryan_api/pkg/hypermedia"
-	rfc7807 "maryan_api/pkg/problem"
 	"net/http"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/config"
+	"github.com/nazarkurii/marshrutka_api/internal/domain/user/service"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	ginutil "github.com/nazarkurii/marshrutka_api/pkg/ginutils"
+	"github.com/nazarkurii/marshrutka_api/pkg/hypermedia"
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/gin-gonic/gin"
 

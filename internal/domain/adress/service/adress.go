@@ -2,13 +2,15 @@ package service
 
 import (
 	"context"
-	"maryan_api/internal/domain/adress/repo"
-	"maryan_api/internal/entity"
-	"maryan_api/pkg/dbutil"
-	"maryan_api/pkg/hypermedia"
 
-	rfc7807 "maryan_api/pkg/problem"
+	"github.com/nazarkurii/marshrutka_api/internal/domain/adress/repo"
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	"github.com/nazarkurii/marshrutka_api/pkg/dbutil"
+	"github.com/nazarkurii/marshrutka_api/pkg/hypermedia"
+
 	"net/http"
+
+	rfc7807 "github.com/nazarkurii/marshrutka_api/pkg/problem"
 
 	"github.com/d3code/uuid"
 )

@@ -2,10 +2,11 @@ package repo
 
 import (
 	"context"
-	"maryan_api/internal/entity"
-	dataStore "maryan_api/internal/infrastructure/persistence"
-	objectvalue "maryan_api/internal/valueobject"
 	"time"
+
+	"github.com/nazarkurii/marshrutka_api/internal/entity"
+	dataStore "github.com/nazarkurii/marshrutka_api/internal/infrastructure/persistence"
+	objectvalue "github.com/nazarkurii/marshrutka_api/internal/valueobject"
 
 	"github.com/d3code/uuid"
 	"gorm.io/gorm"

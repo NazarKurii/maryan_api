@@ -1,21 +1,24 @@
 package http
 
 import (
-	"maryan_api/internal/domain/connection/repo"
-	"maryan_api/internal/domain/connection/service"
-	"maryan_api/pkg/auth"
-	ginutil "maryan_api/pkg/ginutils"
 	"net/http"
 
+	"github.com/nazarkurii/marshrutka_api/internal/domain/connection/repo"
+	"github.com/nazarkurii/marshrutka_api/internal/domain/connection/service"
+	"github.com/nazarkurii/marshrutka_api/pkg/auth"
+	ginutil "github.com/nazarkurii/marshrutka_api/pkg/ginutils"
+
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+
 	"gorm.io/gorm"
 )
 
-func RegisterRoutes(db *gorm.DB, s *gin.Engine, client *http.Client) {
+func RegisterRoutes(db *gorm.DB, rdb *redis.Client, s *gin.Engine, client *http.Client) {
 	adminRouter := ginutil.CreateAuthRouter("/admin", auth.Admin.SecretKey(), s)
 	customerRouter := s.Group("/customer")
-	adminHandler := newAdminHandler(service.NewAdminConnection(repo.NewConnectionRepo(db)))
-	customerHandler := newCustomerHandler(service.NewCustomerConnection(repo.NewConnectionRepo(db)))
+	adminHandler := newAdminHandler(service.NewAdminConnection(repo.NewConnectionRepo(db), repo.NewConnectionCacheRepo(rdb)))
+	customerHandler := newCustomerHandler(service.NewCustomerConnection(repo.NewConnectionRepo(db), repo.NewConnectionCacheRepo(rdb)))
 
 	//-----------------------Trip Routes---------------------------------------
 
