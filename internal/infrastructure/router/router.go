@@ -15,19 +15,18 @@ import (
 	ginutil "github.com/nazarkurii/marshrutka_api/pkg/ginutils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 
 	"gorm.io/gorm"
 )
 
-func RegisterRoutes(s *gin.Engine, db *gorm.DB, rdb *redis.Client, client *http.Client) {
+func RegisterRoutes(s *gin.Engine, db *gorm.DB, client *http.Client) {
 	s.Use(ginutil.LogMiddlewear(db))
 
 	passenger.RegisterRoutes(db, s, client)
 	user.RegisterRoutes(db, s, client)
 	bus.RegisterRoutes(db, s, client)
 	adress.RegisterRoutes(db, s, client)
-	connection.RegisterRoutes(db, rdb, s, client)
+	connection.RegisterRoutes(db, s, client)
 	trip.RegisterRoutes(db, s, client)
 	ticket.RegisterRoutes(db, s, client)
 	documents.RegisterRoutes(db, s, client)

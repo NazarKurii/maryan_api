@@ -14,7 +14,6 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -24,13 +23,6 @@ func main() {
 	db := dataStore.Init()
 	// dataStore.Migrate(db)
 	config.LoadCountries(db)
-
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "redis-12982.c135.eu-central-1-1.ec2.cloud.redislabs.com:12982",
-		Username: "default",
-		Password: "VKXPHCJj4zdntikdx2s7Ov3r151yYePg",
-		DB:       0,
-	})
 
 	stripe.InitStripe()
 	server := gin.Default()
@@ -42,7 +34,7 @@ func main() {
 
 	server.Use(languages.GinMiddlewear)
 	client := http.DefaultClient
-	router.RegisterRoutes(server, db, rdb, client)
+	router.RegisterRoutes(server, db, client)
 	server.Static("/imgs", "../../static/images")
 	server.GET("", func(ctx *gin.Context) {
 		ctx.JSON(

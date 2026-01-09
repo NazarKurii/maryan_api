@@ -31,8 +31,7 @@ type CustomerConnection interface {
 }
 
 type connectionService struct {
-	repo  repo.Connection
-	cache repo.ConnectionCache
+	repo repo.Connection
 }
 
 func (c *connectionService) retrieveFindConnectionsFromDB(ctx context.Context, request entity.FindConnectionsRequest) (entity.FindConnectionsResponse, error) {
@@ -96,31 +95,31 @@ func (c *connectionService) retrieveFindConnectionsFromDB(ctx context.Context, r
 	return response, nil
 }
 
-func (c *connectionService) retrieveFindConnectionsFromCache(ctx context.Context, request entity.FindConnectionsRequest) (entity.FindConnectionsResponse, error) {
-	found, err := c.cache.GetFindConnections(ctx, request.From, request.To, request.Date)
-	if err != nil {
-		return entity.FindConnectionsResponse{}, err
-	}
+// func (c *connectionService) retrieveFindConnectionsFromCache(ctx context.Context, request entity.FindConnectionsRequest) (entity.FindConnectionsResponse, error) {
+// 	found, err := c.cache.GetFindConnections(ctx, request.From, request.To, request.Date)
+// 	if err != nil {
+// 		return entity.FindConnectionsResponse{}, err
+// 	}
 
-	for i, connection := range found.Connections {
-		found.Connections[i].Available = config.MustParseToLocal(time.Now(), connection.DepartureCountry).UTC().Before(connection.SellBefore)
-		found.Connections[i].Fits = request.Adults+request.Children+request.Teenagers < connection.TicketsLeft
-	}
+// 	for i, connection := range found.Connections {
+// 		found.Connections[i].Available = config.MustParseToLocal(time.Now(), connection.DepartureCountry).UTC().Before(connection.SellBefore)
+// 		found.Connections[i].Fits = request.Adults+request.Children+request.Teenagers < connection.TicketsLeft
+// 	}
 
-	for i, date := range found.LeftRange {
-		found.LeftRange[i].Available = config.MustParseToLocalByUUID(time.Now(), request.From).UTC().Before(date.SellBefore)
-	}
+// 	for i, date := range found.LeftRange {
+// 		found.LeftRange[i].Available = config.MustParseToLocalByUUID(time.Now(), request.From).UTC().Before(date.SellBefore)
+// 	}
 
-	for i, date := range found.RightRange {
-		found.RightRange[i].Available = config.MustParseToLocalByUUID(time.Now(), request.From).UTC().Before(date.SellBefore)
-	}
+// 	for i, date := range found.RightRange {
+// 		found.RightRange[i].Available = config.MustParseToLocalByUUID(time.Now(), request.From).UTC().Before(date.SellBefore)
+// 	}
 
-	return found, nil
-}
+// 	return found, nil
+// }
 
-func (c *connectionService) cacheFindConnections(ctx context.Context, request entity.FindConnectionsRequest, connections entity.FindConnectionsResponse) error {
-	return c.cache.SetFindConnections(ctx, request.From, request.To, request.Date, connections)
-}
+// func (c *connectionService) cacheFindConnections(ctx context.Context, request entity.FindConnectionsRequest, connections entity.FindConnectionsResponse) error {
+// 	return c.cache.SetFindConnections(ctx, request.From, request.To, request.Date, connections)
+// }
 
 func (c *connectionService) FindConnections(ctx context.Context, requestJSON entity.FindConnectionsRequestJSON) (entity.FindConnectionsResponse, error) {
 	request, invalidParams := requestJSON.Parse()
@@ -129,22 +128,22 @@ func (c *connectionService) FindConnections(ctx context.Context, requestJSON ent
 		return entity.FindConnectionsResponse{}, rfc7807.BadRequest("request-data", "Request Data Error", "Provied data is not valid.", invalidParams...)
 	}
 
-	connections, err := c.retrieveFindConnectionsFromCache(ctx, request)
-	if err == nil {
-		fmt.Println("Retrieved from redis")
-		return connections, nil
-	}
+	// connections, err := c.retrieveFindConnectionsFromCache(ctx, request)
+	// if err == nil {
+	// 	fmt.Println("Retrieved from redis")
+	// 	return connections, nil
+	// }
 
-	connections, err = c.retrieveFindConnectionsFromDB(ctx, request)
+	connections, err := c.retrieveFindConnectionsFromDB(ctx, request)
 	if err != nil {
 		fmt.Println("Retrieved from db")
 		return entity.FindConnectionsResponse{}, err
 	}
 
-	err = c.cacheFindConnections(ctx, request, connections)
-	if err != nil {
-		fmt.Println("Could not set redis instance")
-	}
+	// err = c.cacheFindConnections(ctx, request, connections)
+	// if err != nil {
+	// 	fmt.Println("Could not set redis instance")
+	// }
 
 	return connections, nil
 
@@ -258,10 +257,10 @@ func (c *customerService) GetConnections(ctx context.Context, userID uuid.UUID, 
 
 //Declaration functions
 
-func NewAdminConnection(repo repo.Connection, cacheRepo repo.ConnectionCache) AdminConnection {
-	return &adminService{connectionService{repo, cacheRepo}, repo}
+func NewAdminConnection(repo repo.Connection) AdminConnection {
+	return &adminService{connectionService{repo}, repo}
 }
 
-func NewCustomerConnection(repo repo.Connection, cacheRepo repo.ConnectionCache) CustomerConnection {
-	return &customerService{connectionService{repo, cacheRepo}, repo}
+func NewCustomerConnection(repo repo.Connection) CustomerConnection {
+	return &customerService{connectionService{repo}, repo}
 }
