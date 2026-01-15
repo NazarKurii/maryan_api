@@ -27,7 +27,7 @@ func main() {
 	stripe.InitStripe()
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"*"},
+		AllowOrigins: []string{"https://marshrutka.store", "http://marshrutka.store"},
 		AllowHeaders: []string{"Authorization", "Content-Type", "X-Email-Access-Token", "X-Customer-Update-Token", "Content-Language"},
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 	}))
@@ -36,16 +36,14 @@ func main() {
 	client := http.DefaultClient
 	router.RegisterRoutes(server, db, client)
 	server.Static("/imgs", "../../static/images")
-	server.GET("", func(ctx *gin.Context) {
-		ctx.JSON(
-			http.StatusOK, struct {
-				Message string
-			}{
-				"Hello, World CI/CD TEST 8.0!",
-			},
-		)
+	server.GET("/health", func(ctx *gin.Context) {
+		ctx.Status(http.StatusOK)
 	})
 	gin.SetMode(gin.ReleaseMode)
 
-	server.Run(os.Getenv("PORT"))
+	err := server.Run(os.Getenv("PORT"))
+	if err != nil {
+		panic(err)
+		//
+	}
 }

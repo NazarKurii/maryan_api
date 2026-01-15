@@ -27,20 +27,77 @@ jobs:
       run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: Build Docker Image
-      run: docker build -t ghcr.io/${{ github.repository }}:latest .
+      run: |
+        SHA=${GITHUB_SHA::7}
+        docker build -t ghcr.io/nazarkurii/marshrutka_api:$SHA .
 
     - name: Push Docker Image
-      run: docker push ghcr.io/${{ github.repository }}:latest
+      run: |
+        SHA=${GITHUB_SHA::7}
+        docker push ghcr.io/nazarkurii/marshrutka_api:$SHA
 
     - name: Deploy To Droplet
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        GITHUB_SHA: ${{ github.sha }}
       with: 
         host: ${{ secrets.DO_HOST }}
         username: ${{ secrets.DO_USER }}
         key: ${{ secrets.DO_SSH_KEY }}
+        envs: GITHUB_SHA
         script: |
+          set -e
+
+          SHA=${GITHUB_SHA::7}
+          IMAGE=ghcr.io/nazarkurii/marshrutka_api:$SHA
+          OLD_CONTAINER=marshrutka_api
+          NEW_CONTAINER=marshrutka_api_$SHA
+          NETWORK=marshrutka_net
+
           cd ~/marshrutka/deployment
           git pull origin main
-          docker compose pull
-          docker compose up -d
-          docker image prune -f
+
+          if ! docker network inspect $NETWORK >/dev/null 2>&1; then
+            docker network create $NETWORK
+          fi
+
+          docker pull $IMAGE
+
+          docker run -d \
+            --network $NETWORK \
+            --env-file ./server/.env \
+            --name $NEW_CONTAINER \
+            $IMAGE
+
+          COUNT=0
+          MAX_TRIES=10
+
+          until [ "$(docker inspect --format='{{.State.Health.Status}}' $NEW_CONTAINER)" = "healthy" ]; do
+
+            if [ "$STATUS" = "healthy" ]; then
+              break
+            fi
+          
+            COUNT=$((COUNT+1))
+
+            if [ $COUNT -ge $MAX_TRIES ]; then
+              echo "Health check failed"
+              docker logs $NEW_CONTAINER || true
+              docker rm -f $NEW_CONTAINER || true
+              exit 1
+            fi
+
+            sleep 1
+            
+          done
+
+          docker network disconnect $NETWORK $OLD_CONTAINER || true
+          docker stop $OLD_CONTAINER || true
+          docker rm $OLD_CONTAINER || true
+
+          docker rename $NEW_CONTAINER $OLD_CONTAINER
+          
+          docker restart nginx
+
+          docker container prune -f
+          docker image prune -a -f

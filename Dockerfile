@@ -14,11 +14,14 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GIN_MODE=release go build -o ./cmd/bin
 #copying binary into final image
 FROM alpine:3.19
 
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache tzdata curl
 
 WORKDIR /app
 
 COPY --from=builder /app/cmd/bin/app .
 COPY ./static /app
+
+HEALTHCHECK --interval=10s --timeout=2s --retries=5 \
+  CMD curl -fs http://localhost:8080/health || exit 1
 
 CMD ["./app"]
