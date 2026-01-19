@@ -11,7 +11,7 @@ import (
 func LoadConfig(path string) {
 	err := godotenv.Load(path)
 	if err != nil {
-		if os.Getenv("GINMODE") != "release" {
+		if os.Getenv("GIN_MODE") != "release" {
 			fmt.Println("env non loaded: ", err.Error())
 		}
 	}

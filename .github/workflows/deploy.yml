@@ -18,7 +18,7 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.23.0'
-        cache: false
+        cache: true
     
     # - name: Test
     #   run: go test -v ./...
@@ -55,7 +55,7 @@ jobs:
           NETWORK=marshrutka_net
 
           cd ~/marshrutka/deployment
-          git pull origin main
+          git pull origin main || true
 
           if ! docker network inspect $NETWORK >/dev/null 2>&1; then
             docker network create $NETWORK
@@ -72,24 +72,29 @@ jobs:
           COUNT=0
           MAX_TRIES=10
 
-          until [ "$(docker inspect --format='{{.State.Health.Status}}' $NEW_CONTAINER)" = "healthy" ]; do
+          while true; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' $NEW_CONTAINER 2>/dev/null || echo "starting")
 
-            if [ "$STATUS" = "healthy" ]; then
+            if [ $STATUS = "healthy" ]; then
               break
             fi
-          
+
             COUNT=$((COUNT+1))
+
+            echo "Status:"
+            echo $STATUS
 
             if [ $COUNT -ge $MAX_TRIES ]; then
               echo "Health check failed"
               docker logs $NEW_CONTAINER || true
               docker rm -f $NEW_CONTAINER || true
+              docker image prune -f -a || true
               exit 1
             fi
 
-            sleep 1
-            
+            sleep 3
           done
+
 
           docker network disconnect $NETWORK $OLD_CONTAINER || true
           docker stop $OLD_CONTAINER || true

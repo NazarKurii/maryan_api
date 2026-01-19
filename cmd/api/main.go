@@ -27,7 +27,7 @@ func main() {
 	stripe.InitStripe()
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"https://marshrutka.store", "http://marshrutka.store"},
+		AllowOrigins: []string{"https://marshrutka.store", "http://marshrutka.store", "http://localhost:3000"},
 		AllowHeaders: []string{"Authorization", "Content-Type", "X-Email-Access-Token", "X-Customer-Update-Token", "Content-Language"},
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 	}))
@@ -39,7 +39,6 @@ func main() {
 	server.GET("/health", func(ctx *gin.Context) {
 		ctx.Status(http.StatusOK)
 	})
-	gin.SetMode(gin.ReleaseMode)
 
 	err := server.Run(os.Getenv("PORT"))
 	if err != nil {
